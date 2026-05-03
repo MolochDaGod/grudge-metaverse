@@ -72,23 +72,24 @@ function parseAuthResponse(data: any): { token: string; user: GrudgeUser } | nul
   const token = data.token;
   if (!token) return null;
 
+  // Production grudge-id uses snake_case in user object
   const u = data.user || data;
   return {
     token,
     user: {
-      grudgeId: u.grudgeId || data.grudgeId || data.grudge_id,
+      grudgeId: u.grudgeId || u.grudge_id || data.grudgeId || data.grudge_id,
       username: u.username || data.username,
-      displayName: u.displayName || u.username || data.username,
+      displayName: u.displayName || u.display_name || u.username || data.username,
       role: u.role || 'pleb',
       faction: u.faction || null,
       race: u.race || null,
       class: u.class || null,
-      walletAddress: u.walletAddress || null,
-      serverWalletAddress: u.serverWalletAddress || null,
+      walletAddress: u.walletAddress || u.wallet_address || null,
+      serverWalletAddress: u.serverWalletAddress || u.server_wallet_address || null,
       gold: u.gold ?? 1000,
-      gbuxBalance: u.gbuxBalance ?? 0,
-      isGuest: !!u.isGuest,
-      puterUuid: u.puterUuid || null,
+      gbuxBalance: u.gbuxBalance || u.gbux_balance || 0,
+      isGuest: !!(u.isGuest || u.is_guest),
+      puterUuid: u.puterUuid || u.puter_uuid || null,
     },
   };
 }
@@ -108,20 +109,22 @@ export async function handleAuthCallback(): Promise<boolean> {
     });
     if (!res.ok) return false;
     const data = await res.json();
+    // Production /auth/user returns { valid, user: {...}, payload: {...} }
+    const u = data.user || data.payload || data;
     setAuth(token, {
-      grudgeId: data.grudgeId,
-      username: data.username,
-      displayName: data.displayName || data.username,
-      role: data.role || 'pleb',
-      faction: data.faction,
-      race: data.race,
-      class: data.class,
-      walletAddress: data.walletAddress,
-      serverWalletAddress: data.serverWalletAddress,
-      gold: data.gold || 0,
-      gbuxBalance: data.gbuxBalance || 0,
-      isGuest: data.isGuest || false,
-      puterUuid: data.puterUuid || null,
+      grudgeId: u.grudgeId || u.grudge_id,
+      username: u.username,
+      displayName: u.displayName || u.display_name || u.username,
+      role: u.role || 'pleb',
+      faction: u.faction || null,
+      race: u.race || null,
+      class: u.class || null,
+      walletAddress: u.walletAddress || u.wallet_address || null,
+      serverWalletAddress: u.serverWalletAddress || u.server_wallet_address || null,
+      gold: u.gold || 0,
+      gbuxBalance: u.gbuxBalance || u.gbux_balance || 0,
+      isGuest: !!(u.isGuest || u.is_guest),
+      puterUuid: u.puterUuid || u.puter_uuid || null,
     });
     return true;
   } catch {
@@ -156,13 +159,17 @@ export async function loginWithPuter(): Promise<boolean> {
     const puterUser = await puter.auth.signIn();
     if (!puterUser?.uuid) throw new Error('Puter auth failed — no UUID');
 
-    // Exchange Puter UUID for Grudge JWT + server wallet
+    // Get Puter auth token for backend verification
+    const puterToken = puterUser.token || puter.authToken || puter.auth?.token || null;
+
+    // Exchange Puter UUID + token for Grudge JWT + server wallet
     const res = await fetch(`${AUTH_URL}/auth/puter`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         puterUuid: puterUser.uuid,
         puterUsername: puterUser.username || null,
+        puterToken: puterToken,
       }),
     });
 
