@@ -150,25 +150,34 @@ export async function loginWithPuter(): Promise<boolean> {
         script.onerror = () => reject(new Error('Failed to load Puter SDK'));
         document.head.appendChild(script);
       });
+      // Wait a tick for SDK to initialize
+      await new Promise(r => setTimeout(r, 500));
     }
 
     const puter = (window as any).puter;
     if (!puter) throw new Error('Puter SDK not available');
 
-    // Sign in via Puter (shows Puter auth popup if needed)
+    // Sign in via Puter popup (must be triggered from user gesture)
     const puterUser = await puter.auth.signIn();
-    if (!puterUser?.uuid) throw new Error('Puter auth failed — no UUID');
 
-    // Get Puter auth token for backend verification
-    const puterToken = puterUser.token || puter.authToken || puter.auth?.token || null;
+    // After signIn(), puter.authToken holds the verified auth token.
+    // This is the token the backend needs for server-side verification.
+    const puterToken = puter.authToken;
+    const uuid = puterUser?.uuid || (await puter.auth.getUser())?.uuid;
+    const username = puterUser?.username || (await puter.auth.getUser())?.username;
+
+    if (!uuid) throw new Error('Puter auth failed — no UUID');
+    if (!puterToken) throw new Error('Puter auth failed — no token');
+
+    console.log('[auth] Puter signed in:', uuid, 'token:', puterToken.slice(0, 20) + '...');
 
     // Exchange Puter UUID + token for Grudge JWT + server wallet
     const res = await fetch(`${AUTH_URL}/auth/puter`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        puterUuid: puterUser.uuid,
-        puterUsername: puterUser.username || null,
+        puterUuid: uuid,
+        puterUsername: username || null,
         puterToken: puterToken,
       }),
     });
@@ -179,7 +188,7 @@ export async function loginWithPuter(): Promise<boolean> {
     const parsed = parseAuthResponse(data);
     if (!parsed) throw new Error('Invalid auth response');
 
-    setAuth(parsed.token, { ...parsed.user, puterUuid: puterUser.uuid });
+    setAuth(parsed.token, { ...parsed.user, puterUuid: uuid });
     return true;
   } catch (err) {
     console.warn('[auth] Puter login failed:', err);
