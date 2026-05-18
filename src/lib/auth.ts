@@ -12,7 +12,8 @@
  */
 
 const AUTH_URL = 'https://id.grudge-studio.com';
-const API_URL = 'https://api.grudge-studio.com';
+// In production: Vercel rewrites /api/* → api.grudge-studio.com. In dev: direct.
+export const API_URL = import.meta.env.PROD ? '/api' : 'https://api.grudge-studio.com';
 const TOKEN_KEY = 'grudge_auth_token';
 const USER_KEY = 'grudge_user';
 
@@ -249,4 +250,4 @@ export function checkSSO(): void {
   window.location.href = `${AUTH_URL}/auth/sso-check?return=${encodeURIComponent(returnUrl)}`;
 }
 
-export { API_URL, AUTH_URL };
+export { AUTH_URL };
