@@ -3,7 +3,7 @@
  */
 
 import * as THREE from 'three';
-import { isAuthenticated, loginWithPuter, loginGuest, loginDiscord, loginGoogle } from '../lib/auth';
+import { isAuthenticated, loginWithSSO, loginGuest, loginDiscord, loginGoogle, getLastAuthError } from '../lib/auth';
 
 export function mountLanding(container: HTMLElement): () => void {
   // If already authed, skip to lobby
@@ -30,13 +30,14 @@ export function mountLanding(container: HTMLElement): () => void {
             🎮 Play as Guest
           </button>
           <div style="display:flex;gap:8px;margin-top:8px;">
-            <button id="btn-discord" style="padding:10px 20px;border:none;border-radius:6px;background:#5865F2;color:white;font-size:12px;font-weight:600;cursor:pointer;">
+          <button id="btn-discord" style="padding:10px 20px;border:none;border-radius:6px;background:#5865F2;color:white;font-size:12px;font-weight:600;cursor:pointer;">
               Discord
             </button>
             <button id="btn-google" style="padding:10px 20px;border:1px solid #444;border-radius:6px;background:transparent;color:#aaa;font-size:12px;font-weight:600;cursor:pointer;">
               Google
             </button>
           </div>
+          <p id="auth-error" style="color:#ff5555;font-size:12px;margin-top:10px;display:none;"></p>
           <p style="color:#444;font-size:10px;margin-top:6px;">By Racalvin The Pirate King · grudge-studio.com</p>
         </div>
       </div>
@@ -100,29 +101,33 @@ export function mountLanding(container: HTMLElement): () => void {
   };
   addEventListener('resize', onResize);
 
-  // Auth buttons — Puter is primary
-  document.getElementById('btn-puter')?.addEventListener('click', async () => {
+  // Helper: show error below buttons
+  function showAuthError(msg: string | null) {
+    const el = document.getElementById('auth-error');
+    if (!el) return;
+    if (msg) { el.textContent = msg; el.style.display = 'block'; }
+    else { el.style.display = 'none'; }
+  }
+
+  // Auth buttons — SSO redirect is primary (handles Puter, Discord, Google, etc.)
+  document.getElementById('btn-puter')?.addEventListener('click', () => {
     const btn = document.getElementById('btn-puter') as HTMLButtonElement;
-    btn.textContent = 'Connecting...';
+    btn.textContent = 'Redirecting...';
     btn.disabled = true;
-    const ok = await loginWithPuter();
-    if (ok) {
-      window.location.hash = '#/lobby';
-    } else {
-      btn.textContent = 'Retry — Enter with Grudge ID';
-      btn.disabled = false;
-    }
+    loginWithSSO(); // Navigates to id.grudge-studio.com/login
   });
 
   document.getElementById('btn-guest')?.addEventListener('click', async () => {
     const btn = document.getElementById('btn-guest') as HTMLButtonElement;
     btn.textContent = 'Connecting...';
     btn.disabled = true;
+    showAuthError(null);
     const ok = await loginGuest();
     if (ok) {
       window.location.hash = '#/lobby';
     } else {
-      btn.textContent = 'Failed — Try Again';
+      showAuthError(getLastAuthError() || 'Guest login failed — check connection');
+      btn.textContent = '🎮 Retry — Play as Guest';
       btn.disabled = false;
     }
   });

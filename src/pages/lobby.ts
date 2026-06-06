@@ -104,6 +104,7 @@ export function mountLobby(container: HTMLElement): () => void {
       const res = await fetch(`${API_URL}/characters`, {
         method: 'POST',
         headers: authHeaders(),
+        credentials: 'include',
         body: JSON.stringify({ name, raceId: race, classId: cls }),
       });
       const data = await res.json();
@@ -119,8 +120,13 @@ export function mountLobby(container: HTMLElement): () => void {
   async function loadCharacters() {
     const listEl = document.getElementById('char-list')!;
     try {
-      const res = await fetch(`${API_URL}/characters`, { headers: authHeaders() });
-      if (!res.ok) throw new Error('Failed to fetch');
+      const res = await fetch(`${API_URL}/characters`, {
+        headers: authHeaders(),
+        credentials: 'include',
+      });
+      // If response is HTML instead of JSON, the API is routing to frontend
+      const contentType = res.headers.get('content-type') || '';
+      if (!res.ok || contentType.includes('text/html')) throw new Error('API unavailable');
       const data = await res.json();
       const chars: Character[] = data.characters || data || [];
 
@@ -150,7 +156,14 @@ export function mountLobby(container: HTMLElement): () => void {
         });
       });
     } catch {
-      listEl.innerHTML = `<div style="padding:40px;text-align:center;color:#ff6644;border:1px solid rgba(255,100,50,0.2);border-radius:12px;grid-column:1/-1;">Could not connect to game server. Characters will be available when api.grudge-studio.com is online.</div>`;
+      // Guest without token or API unavailable — show friendly message
+      const isGuest = user?.isGuest;
+      listEl.innerHTML = `<div style="padding:40px;text-align:center;color:${isGuest ? '#8a8070' : '#ff6644'};border:1px solid rgba(${isGuest ? '200,168,75,0.2' : '255,100,50,0.2'});border-radius:12px;grid-column:1/-1;">
+        ${isGuest
+          ? 'Guest mode — enter the world directly! Create a Grudge ID account for persistent characters.'
+          : 'Could not connect to game server. Characters will be available when api.grudge-studio.com is online.'
+        }
+      </div>`;
     }
   }
 
