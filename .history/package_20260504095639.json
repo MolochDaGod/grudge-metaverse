@@ -8,12 +8,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "server:install": "npm --prefix server install",
-    "server:dev": "npm --prefix server run dev",
-    "server:build": "npm --prefix server run build",
-    "server:start": "npm --prefix server start",
-    "server:typecheck": "npm --prefix server run typecheck"
+    "preview": "vite preview"
   },
   "dependencies": {
     "socket.io-client": "^4.8.3",
