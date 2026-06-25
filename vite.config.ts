@@ -4,6 +4,15 @@ export default defineConfig({
   build: { outDir: 'dist', target: 'esnext' },
   server: {
     proxy: {
+      '/api/auth/puter': {
+        target: 'https://grudge-builder-production.up.railway.app',
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.removeHeader('origin');
+          });
+        },
+      },
       '/api/auth': {
         target: 'https://id.grudge-studio.com',
         changeOrigin: true,
