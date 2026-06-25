@@ -1,14 +1,7 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
-import {
-  buildModel3d,
-  resolveRaceModelUrl,
-  type WarlordsCharacter,
-} from './warlordsCharacter';
-import { applyModel3d, Grudge6EquipmentManager } from './grudge6Equipment';
+import type { WarlordsCharacter } from './warlordsCharacter';
+import { loadGltfCharacter } from './gltfCharacterLoader';
 import { AvatarAnimator } from './avatarAnimator';
-import { prepareGrudge6Model } from './grudge6Skeleton';
 
 export interface LoadedAvatar {
   group: THREE.Group;
@@ -19,41 +12,12 @@ export interface LoadedAvatar {
 export async function loadWarlordsAvatar(
   char: WarlordsCharacter,
 ): Promise<LoadedAvatar> {
-  const model3d = buildModel3d(char);
-  const url = resolveRaceModelUrl(char.raceId);
-  const isFbx = url.toLowerCase().endsWith('.fbx');
-
-  let root: THREE.Object3D;
-  if (isFbx) {
-    root = await new FBXLoader().loadAsync(url);
-  } else {
-    root = (await new GLTFLoader().loadAsync(url)).scene;
-  }
-
-  const em = new Grudge6EquipmentManager(model3d.prefix);
-  em.catalog(root);
-  applyModel3d(em, model3d);
-
-  const rig = prepareGrudge6Model(root, {
-    targetHeight: 2.8,
-    raceScale: model3d.scale,
-  });
-
-  const wrapper = new THREE.Group();
-  wrapper.add(root);
-  wrapper.userData.characterId = char.id;
-  wrapper.userData.characterName = char.name;
-  wrapper.userData.isFreePlay = char.id.startsWith('freeplay_');
-
-  let animator: AvatarAnimator | null = null;
-  try {
-    animator = new AvatarAnimator(rig.animRoot, rig.boneNames);
-    await animator.load();
-  } catch (err) {
-    console.warn('[metaverse] Animator setup failed:', err);
-  }
-
-  return { group: wrapper, animator, height: rig.height };
+  const loaded = await loadGltfCharacter(char);
+  return {
+    group: loaded.group,
+    animator: AvatarAnimator.fromController(loaded.controller),
+    height: 2.8,
+  };
 }
 
 export function createFallbackAvatar(name: string): LoadedAvatar {

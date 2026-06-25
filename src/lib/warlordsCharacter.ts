@@ -37,13 +37,13 @@ export interface RaceConfig {
 }
 
 export const RACE_GRUDGE6: Record<string, RaceConfig> = {
-  human:     { modelId: 'human',     prefix: 'WK_',  label: 'Human',     cdnPath: '/models/grudge6/races/WK_Characters.fbx',  scale: 1.0,  faction: 'crusade', format: 'fbx' },
-  barbarian: { modelId: 'barbarian', prefix: 'BRB_', label: 'Barbarian', cdnPath: '/models/grudge6/races/BRB_Characters.fbx', scale: 1.1,  faction: 'crusade', format: 'fbx' },
-  elf:       { modelId: 'elf',       prefix: 'ELF_', label: 'Elf',       cdnPath: '/models/grudge6/races/ELF_Characters.fbx', scale: 1.0,  faction: 'fabled', format: 'fbx' },
-  dwarf:     { modelId: 'dwarf',     prefix: 'DWF_', label: 'Dwarf',     cdnPath: '/models/grudge6/races/DWF_Characters.fbx', scale: 0.85, faction: 'crusade', format: 'fbx' },
-  orc:       { modelId: 'orc',       prefix: 'ORC_', label: 'Orc',       cdnPath: '/models/grudge6/races/ORC_Characters.fbx', scale: 1.15, faction: 'legion', format: 'fbx' },
-  undead:    { modelId: 'undead',    prefix: 'UD_',  label: 'Undead',    cdnPath: '/models/grudge6/races/UD_Characters.fbx',  scale: 1.0,  faction: 'legion', format: 'fbx' },
-  worge:     { modelId: 'barbarian', prefix: 'BRB_', label: 'Worge',     cdnPath: '/models/grudge6/races/BRB_Characters.fbx', scale: 1.1,  faction: 'wild', format: 'fbx' },
+  human:     { modelId: 'human',     prefix: 'WK_',  label: 'Human',     cdnPath: '/models/grudge6/metaverse/human.glb',     scale: 1.0,  faction: 'crusade', format: 'glb' },
+  barbarian: { modelId: 'barbarian', prefix: 'BRB_', label: 'Barbarian', cdnPath: '/models/grudge6/metaverse/barbarian.glb', scale: 1.1,  faction: 'crusade', format: 'glb' },
+  elf:       { modelId: 'elf',       prefix: 'ELF_', label: 'Elf',       cdnPath: '/models/grudge6/metaverse/elf.glb',       scale: 1.0,  faction: 'fabled', format: 'glb' },
+  dwarf:     { modelId: 'dwarf',     prefix: 'DWF_', label: 'Dwarf',     cdnPath: '/models/grudge6/metaverse/dwarf.glb',     scale: 0.85, faction: 'crusade', format: 'glb' },
+  orc:       { modelId: 'orc',       prefix: 'ORC_', label: 'Orc',       cdnPath: '/models/grudge6/metaverse/orc.glb',       scale: 1.15, faction: 'legion', format: 'glb' },
+  undead:    { modelId: 'undead',    prefix: 'UD_',  label: 'Undead',    cdnPath: '/models/grudge6/metaverse/undead.glb',    scale: 1.0,  faction: 'legion', format: 'glb' },
+  worge:     { modelId: 'barbarian', prefix: 'BRB_', label: 'Worge',     cdnPath: '/models/grudge6/metaverse/barbarian.glb', scale: 1.1,  faction: 'wild', format: 'glb' },
 };
 
 const CLASS_DEFAULT_WEAPONS: Record<string, Record<string, string>> = {

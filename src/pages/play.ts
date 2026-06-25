@@ -128,8 +128,10 @@ export function mountPlay(container: HTMLElement): () => void {
         setLoadStatus(`Loading ${char.name} (free play)...`);
       }
       if (char) {
-        setLoadStatus(`Loading ${char.name} (${char.raceId})...`);
+        setLoadStatus(`Loading ${char.name} (${char.raceId} GLTF)...`);
         const loaded = await loadWarlordsAvatar(char);
+        const src = loaded.group.userData.avatarSource as string | undefined;
+        if (src) setLoadStatus(`${char.name} ready (${src})`);
         avatarAnimator?.dispose();
         playerRoot.remove(activePlayer);
         activePlayer = loaded.group;

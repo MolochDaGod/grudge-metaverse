@@ -7,7 +7,8 @@ const base = (process.argv[2] || 'https://metaverse.grudge-studio.com').replace(
 
 const checks = [
   { name: 'metaverse SPA', url: `${base}/`, expect: 'Grudge Metaverse' },
-  { name: 'grudge6 human FBX', url: 'https://assets.grudge-studio.com/models/grudge6/races/WK_Characters.fbx', head: true },
+  { name: 'race human GLB', url: 'https://assets.grudge-studio.com/models/characters/races/human.glb', head: true },
+  { name: 'bundled avatar (optional)', url: 'https://assets.grudge-studio.com/models/grudge6/metaverse/human.glb', head: true, optional: true },
   { name: 'Bip001 walk anim', url: 'https://assets.grudge-studio.com/models/animations/retargeted/bip001/paragon_walk.glb', head: true },
   { name: 'characters API (Warlords Railway)', url: `${base}/api/characters`, expectJsonArray: true },
   { name: 'guest auth (puter proxy)', url: `${base}/api/auth/puter`, method: 'POST', body: { puterId: 'guest_smoke', displayName: 'Guest' }, expectField: 'success' },
@@ -38,7 +39,10 @@ for (const c of checks) {
         ? { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: base }, body: JSON.stringify(c.body || {}) }
         : {};
     const res = await fetch(c.url, init);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      if (c.optional) { console.log(`SKIP ${c.name} (not baked yet)`); continue; }
+      throw new Error(`HTTP ${res.status}`);
+    }
     if (c.expectJsonArray) {
       const data = await res.json();
       if (!Array.isArray(data)) throw new Error('expected JSON array');
