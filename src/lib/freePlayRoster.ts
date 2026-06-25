@@ -7,13 +7,14 @@ import {
   type WarlordsCharacter,
 } from './warlordsCharacter';
 
+/** Canonical grudge6 races — Human, Barbarian, Orc, Undead, Elf, Dwarf */
 export const FREE_PLAY_RACE_IDS = [
   'human',
   'barbarian',
-  'elf',
-  'dwarf',
   'orc',
   'undead',
+  'elf',
+  'dwarf',
 ] as const;
 
 export type FreePlayRaceId = (typeof FREE_PLAY_RACE_IDS)[number];

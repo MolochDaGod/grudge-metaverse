@@ -44,7 +44,7 @@ export function mountLobby(container: HTMLElement): () => void {
       <main style="max-width:900px;margin:0 auto;padding:32px 24px;">
         <section style="margin-bottom:36px;">
           <h2 style="color:#c8a84b;font-size:22px;margin-bottom:4px;">Free Play — Grudge6</h2>
-          <p style="color:#666;font-size:13px;margin-bottom:16px;">Jump in instantly with any of the six Bip001 races. Retargeted Paragon + Rokoko locomotion — no account required.</p>
+          <p style="color:#666;font-size:13px;margin-bottom:16px;">Human · Barbarian · Orc · Undead · Elf · Dwarf — six grudge6 Bip001 races, free for guests and signed-in players.</p>
           <div id="freeplay-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:12px;"></div>
           <label style="color:#8a8070;font-size:12px;display:flex;align-items:center;gap:8px;">
             Class
@@ -79,8 +79,8 @@ export function mountLobby(container: HTMLElement): () => void {
           <input id="char-name" placeholder="Character name" style="width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#0a0a15;color:#e0d6c0;margin-bottom:12px;font-size:14px;" />
           <select id="char-race" style="width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#0a0a15;color:#e0d6c0;margin-bottom:12px;">
             <option value="human">Human</option><option value="barbarian">Barbarian</option>
-            <option value="elf">Elf</option><option value="dwarf">Dwarf</option>
             <option value="orc">Orc</option><option value="undead">Undead</option>
+            <option value="elf">Elf</option><option value="dwarf">Dwarf</option>
           </select>
           <select id="char-class" style="width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#0a0a15;color:#e0d6c0;margin-bottom:20px;">
             <option value="warrior">Warrior</option><option value="mage">Mage</option>
