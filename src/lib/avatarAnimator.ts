@@ -4,17 +4,22 @@ import {
   GRUDGE6_ANIMATION_URLS,
   type LocomotionState,
 } from './grudge6Animations';
+import { remapClipForRig } from './grudge6Skeleton';
 
 const LOADER = new GLTFLoader();
 
 export class AvatarAnimator {
   readonly mixer: THREE.AnimationMixer;
+  private readonly animRoot: THREE.Object3D;
+  private readonly boneNames: Set<string>;
   private actions = new Map<LocomotionState, THREE.AnimationAction>();
   private current: LocomotionState = 'idle';
   private loaded = false;
 
-  constructor(root: THREE.Object3D) {
-    this.mixer = new THREE.AnimationMixer(root);
+  constructor(animRoot: THREE.Object3D, boneNames: Set<string>) {
+    this.animRoot = animRoot;
+    this.boneNames = boneNames;
+    this.mixer = new THREE.AnimationMixer(animRoot);
   }
 
   async load(): Promise<void> {
@@ -27,10 +32,22 @@ export class AvatarAnimator {
     for (const [state, url] of entries) {
       try {
         const gltf = await LOADER.loadAsync(url);
-        const clip = gltf.animations[0];
-        if (!clip) continue;
+        const raw = gltf.animations[0];
+        if (!raw) continue;
+
+        const clip = remapClipForRig(raw, this.boneNames);
         clip.name = state;
-        const action = this.mixer.clipAction(clip);
+
+        const matched = clip.tracks.some((t) => {
+          const bone = t.name.split('.')[0];
+          return this.boneNames.has(bone);
+        });
+        if (!matched) {
+          console.warn(`[metaverse] No matching bones for "${state}" on rig`);
+          continue;
+        }
+
+        const action = this.mixer.clipAction(clip, this.animRoot);
         action.setLoop(THREE.LoopRepeat, Infinity);
         this.actions.set(state, action);
       } catch (err) {
@@ -42,22 +59,34 @@ export class AvatarAnimator {
     if (idle) {
       idle.play();
       this.current = this.actions.has('idle') ? 'idle' : 'walk';
+      this.loaded = true;
+    } else {
+      console.warn('[metaverse] No locomotion clips bound to skeleton');
     }
-    this.loaded = true;
   }
 
   setLocomotion(state: LocomotionState, sprinting = false): void {
     if (!this.loaded) return;
+
     const target: LocomotionState =
-      state === 'idle' ? 'idle' : sprinting && this.actions.has('run') ? 'run' : 'walk';
+      state === 'idle'
+        ? 'idle'
+        : sprinting && this.actions.has('run')
+          ? 'run'
+          : 'walk';
+
     if (target === this.current) return;
 
     const next = this.actions.get(target);
     const prev = this.actions.get(this.current);
     if (!next) return;
 
-    next.reset().fadeIn(0.2).play();
-    prev?.fadeOut(0.2);
+    if (prev && prev !== next) {
+      prev.fadeOut(0.2);
+      next.reset().fadeIn(0.2).play();
+    } else {
+      next.reset().play();
+    }
     this.current = target;
   }
 

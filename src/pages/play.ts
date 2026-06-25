@@ -8,6 +8,7 @@ import { getUser, isAuthenticated } from '../lib/auth';
 import { connect, broadcastPosition, updateRemotePlayers, disconnect } from '../lib/multiplayer';
 import { createFallbackAvatar, loadWarlordsAvatar } from '../lib/avatarLoader';
 import type { AvatarAnimator } from '../lib/avatarAnimator';
+import { CharacterController } from '../lib/characterController';
 import {
   getActiveCharacter,
   getCharacterIdFromHash,
@@ -36,7 +37,7 @@ export function mountPlay(container: HTMLElement): () => void {
         <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">A</kbd>
         <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">S</kbd>
         <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">D</kbd>
-        Move · <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">Space</kbd> Jump · LMB Drag to look
+        Move · <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">Shift</kbd> Sprint · <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">Space</kbd> Jump · LMB look
         <br><button id="btn-back" style="margin-top:6px;pointer-events:auto;padding:4px 10px;border:1px solid #444;border-radius:4px;background:transparent;color:#888;cursor:pointer;font-size:11px;">← Back to Lobby</button>
       </div>
     </div>
@@ -95,12 +96,15 @@ export function mountPlay(container: HTMLElement): () => void {
   ocean.position.y = -1;
   scene.add(ocean);
 
-  // Player avatar (grudge6 FBX + Bip001 anims, or fallback capsule)
+  // Stable player root — avatar mesh swaps inside; controller always targets this group
+  const playerRoot = new THREE.Group();
+  playerRoot.position.set(0, 5, 0);
+  scene.add(playerRoot);
+
   let fallback = createFallbackAvatar(displayName);
   let activePlayer: THREE.Group = fallback.group;
   let avatarAnimator: AvatarAnimator | null = fallback.animator;
-  activePlayer.position.set(0, 5, 0);
-  scene.add(activePlayer);
+  playerRoot.add(activePlayer);
 
   const setLoadStatus = (msg: string) => {
     const el = document.getElementById('load-status');
@@ -126,13 +130,11 @@ export function mountPlay(container: HTMLElement): () => void {
       if (char) {
         setLoadStatus(`Loading ${char.name} (${char.raceId})...`);
         const loaded = await loadWarlordsAvatar(char);
-        loaded.group.position.copy(activePlayer.position);
-        loaded.group.rotation.copy(activePlayer.rotation);
         avatarAnimator?.dispose();
-        scene.remove(activePlayer);
+        playerRoot.remove(activePlayer);
         activePlayer = loaded.group;
         avatarAnimator = loaded.animator;
-        scene.add(activePlayer);
+        playerRoot.add(activePlayer);
       }
     } catch (err) {
       console.warn('[metaverse] Avatar load failed, using fallback:', err);
@@ -161,7 +163,7 @@ export function mountPlay(container: HTMLElement): () => void {
       // Find spawn point (center of the map's bounding box)
       const box = new THREE.Box3().setFromObject(world);
       const center = box.getCenter(new THREE.Vector3());
-      activePlayer.position.set(center.x, box.max.y + 5, center.z);
+      playerRoot.position.set(center.x, box.max.y + 5, center.z);
 
       // Hide loading
       document.getElementById('play-loading')?.classList.add('hidden');
@@ -191,23 +193,11 @@ export function mountPlay(container: HTMLElement): () => void {
     },
   );
 
-  // ── Input ──────────────────────────────────────────────────
-  const keys = new Set<string>();
-  let mouseDown = false;
-  let cameraYaw = 0;
-  let cameraPitch = 0.3;
+  const controller = new CharacterController(playerRoot);
+  controller.bind();
 
   const onKeyDown = (e: KeyboardEvent) => {
-    keys.add(e.key.toLowerCase());
     if (e.key === 'Escape') window.location.hash = '#/lobby';
-  };
-  const onKeyUp = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
-  const onMouseDown = (e: MouseEvent) => { if (e.button === 0) mouseDown = true; };
-  const onMouseUp = () => { mouseDown = false; };
-  const onMouseMove = (e: MouseEvent) => {
-    if (!mouseDown) return;
-    cameraYaw -= e.movementX * 0.003;
-    cameraPitch = Math.max(0.05, Math.min(0.85, cameraPitch + e.movementY * 0.003));
   };
   const onResize = () => {
     camera.aspect = innerWidth / innerHeight;
@@ -216,10 +206,6 @@ export function mountPlay(container: HTMLElement): () => void {
   };
 
   addEventListener('keydown', onKeyDown);
-  addEventListener('keyup', onKeyUp);
-  addEventListener('mousedown', onMouseDown);
-  addEventListener('mouseup', onMouseUp);
-  addEventListener('mousemove', onMouseMove);
   addEventListener('resize', onResize);
 
   // ── Terrain Height Raycast ─────────────────────────────────
@@ -236,13 +222,7 @@ export function mountPlay(container: HTMLElement): () => void {
   let broadcastTimer = 0;
 
   // ── Game Loop ──────────────────────────────────────────────
-  const velocity = new THREE.Vector3();
-  const moveDir = new THREE.Vector3();
   const clock = new THREE.Clock();
-  const moveSpeed = 25;
-  const turnSpeed = 2.5;
-  let jumpVel = 0;
-  let grounded = true;
   let running = true;
 
   function animate() {
@@ -250,59 +230,16 @@ export function mountPlay(container: HTMLElement): () => void {
     requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.05);
 
-    // Movement
-    moveDir.set(0, 0, 0);
-    let moving = false;
-    if (keys.has('w')) { moveDir.z -= 1; moving = true; }
-    if (keys.has('s')) { moveDir.z += 1; moving = true; }
-    if (keys.has('a')) { cameraYaw += turnSpeed * dt; }
-    if (keys.has('d')) { cameraYaw -= turnSpeed * dt; }
-    if (keys.has('q')) { moveDir.x -= 1; moving = true; }
-    if (keys.has('e')) { moveDir.x += 1; moving = true; }
+    controller.update(dt, getHeight, avatarAnimator);
 
-    // Sprint
-    const speed = keys.has('shift') ? moveSpeed * 1.8 : moveSpeed;
-
-    if (moveDir.length() > 0) moveDir.normalize();
-    moveDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
-
-    velocity.lerp(moveDir.multiplyScalar(speed), dt * 5);
-    activePlayer.position.x += velocity.x * dt;
-    activePlayer.position.z += velocity.z * dt;
-
-    // Jump
-    if (keys.has(' ') && grounded) { jumpVel = 14; grounded = false; }
-    jumpVel -= 35 * dt;
-    activePlayer.position.y += jumpVel * dt;
-
-    // Terrain snap
-    const h = getHeight(activePlayer.position.x, activePlayer.position.z);
-    if (activePlayer.position.y <= h + 0.1) {
-      activePlayer.position.y = h;
-      jumpVel = 0;
-      grounded = true;
-    }
-
-    // Player rotation + locomotion clips
-    if (moving) {
-      const target = Math.atan2(velocity.x, velocity.z);
-      activePlayer.rotation.y += (target - activePlayer.rotation.y) * dt * 8;
-    }
-    avatarAnimator?.setLocomotion(moving ? 'walk' : 'idle', keys.has('shift'));
-    avatarAnimator?.update(dt);
-
-    // Camera — GTA over-the-shoulder
-    const camDist = 12;
-    const camHeight = 6 + cameraPitch * 8;
-    const camOffset = new THREE.Vector3(0, camHeight, camDist);
-    camOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
-    const camTarget = activePlayer.position.clone();
+    const camTarget = playerRoot.position.clone();
+    const camOffset = controller.getCameraOffset();
     camera.position.lerp(camTarget.clone().add(camOffset), dt * 4);
     camera.lookAt(camTarget.x, camTarget.y + 2, camTarget.z);
 
     // Sun follows player for shadow quality
-    sun.position.set(activePlayer.position.x + 80, 120, activePlayer.position.z + 50);
-    sun.target.position.copy(activePlayer.position);
+    sun.position.set(playerRoot.position.x + 80, 120, playerRoot.position.z + 50);
+    sun.target.position.copy(playerRoot.position);
 
     // Ocean animation
     ocean.material.opacity = 0.8 + Math.sin(clock.elapsedTime * 0.3) * 0.05;
@@ -310,7 +247,7 @@ export function mountPlay(container: HTMLElement): () => void {
     // Multiplayer broadcast (10 Hz)
     broadcastTimer += dt;
     if (broadcastTimer > 0.1) {
-      broadcastPosition(activePlayer.position, activePlayer.rotation.y);
+      broadcastPosition(playerRoot.position, playerRoot.rotation.y);
       broadcastTimer = 0;
     }
     updateRemotePlayers(dt);
@@ -323,11 +260,8 @@ export function mountPlay(container: HTMLElement): () => void {
   return () => {
     running = false;
     disconnect();
+    controller.unbind();
     removeEventListener('keydown', onKeyDown);
-    removeEventListener('keyup', onKeyUp);
-    removeEventListener('mousedown', onMouseDown);
-    removeEventListener('mouseup', onMouseUp);
-    removeEventListener('mousemove', onMouseMove);
     removeEventListener('resize', onResize);
     avatarAnimator?.dispose();
     renderer.dispose();

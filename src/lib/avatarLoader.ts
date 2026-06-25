@@ -8,10 +8,12 @@ import {
 } from './warlordsCharacter';
 import { applyModel3d, Grudge6EquipmentManager } from './grudge6Equipment';
 import { AvatarAnimator } from './avatarAnimator';
+import { prepareGrudge6Model } from './grudge6Skeleton';
 
 export interface LoadedAvatar {
   group: THREE.Group;
   animator: AvatarAnimator | null;
+  height: number;
 }
 
 export async function loadWarlordsAvatar(
@@ -28,17 +30,14 @@ export async function loadWarlordsAvatar(
     root = (await new GLTFLoader().loadAsync(url)).scene;
   }
 
-  root.scale.setScalar(model3d.scale);
-  root.traverse((child) => {
-    if ((child as THREE.Mesh).isMesh) {
-      child.castShadow = true;
-      child.receiveShadow = true;
-    }
-  });
-
   const em = new Grudge6EquipmentManager(model3d.prefix);
   em.catalog(root);
   applyModel3d(em, model3d);
+
+  const rig = prepareGrudge6Model(root, {
+    targetHeight: 2.8,
+    raceScale: model3d.scale,
+  });
 
   const wrapper = new THREE.Group();
   wrapper.add(root);
@@ -48,13 +47,13 @@ export async function loadWarlordsAvatar(
 
   let animator: AvatarAnimator | null = null;
   try {
-    animator = new AvatarAnimator(root);
+    animator = new AvatarAnimator(rig.animRoot, rig.boneNames);
     await animator.load();
   } catch (err) {
     console.warn('[metaverse] Animator setup failed:', err);
   }
 
-  return { group: wrapper, animator };
+  return { group: wrapper, animator, height: rig.height };
 }
 
 export function createFallbackAvatar(name: string): LoadedAvatar {
@@ -67,5 +66,5 @@ export function createFallbackAvatar(name: string): LoadedAvatar {
   body.castShadow = true;
   player.add(body);
   player.userData.characterName = name;
-  return { group: player, animator: null };
+  return { group: player, animator: null, height: 2.4 };
 }
