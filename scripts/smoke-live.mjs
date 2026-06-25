@@ -7,12 +7,28 @@ const base = (process.argv[2] || 'https://metaverse.grudge-studio.com').replace(
 
 const checks = [
   { name: 'metaverse SPA', url: `${base}/`, expect: 'Grudge Metaverse' },
-  { name: 'human race GLB', url: 'https://assets.grudge-studio.com/models/characters/races/human.glb', expect: null, head: true },
+  { name: 'grudge6 human FBX', url: 'https://assets.grudge-studio.com/models/grudge6/races/WK_Characters.fbx', head: true },
+  { name: 'Bip001 walk anim', url: 'https://assets.grudge-studio.com/models/animations/retargeted/bip001/paragon_walk.glb', head: true },
   { name: 'characters API (Warlords Railway)', url: `${base}/api/characters`, expectJsonArray: true },
   { name: 'guest auth (puter proxy)', url: `${base}/api/auth/puter`, method: 'POST', body: { puterId: 'guest_smoke', displayName: 'Guest' }, expectField: 'success' },
 ];
 
 let failed = 0;
+
+// Free-play roster ships in the JS bundle (not index.html shell).
+try {
+  const html = await (await fetch(`${base}/`)).text();
+  const m = html.match(/\/assets\/(index-[^"]+\.js)/);
+  if (!m) throw new Error('bundle script not found in index.html');
+  const js = await (await fetch(`${base}/assets/${m[1]}`)).text();
+  if (!js.includes('Free Play') || !js.includes('freeplay_')) {
+    throw new Error('free-play roster missing from bundle');
+  }
+  console.log('OK  free play in bundle');
+} catch (err) {
+  console.log(`FAIL free play in bundle: ${err.message}`);
+  failed++;
+}
 
 for (const c of checks) {
   try {

@@ -44,3 +44,11 @@ export function createFreePlayCharacter(
     model3d: { scale: race.scale },
   };
 }
+
+/** Parse `freeplay_{race}` deep links and refresh-safe session restores. */
+export function resolveFreePlayFromId(charId: string): WarlordsCharacter | null {
+  if (!charId.startsWith('freeplay_')) return null;
+  const raceId = charId.slice('freeplay_'.length) as FreePlayRaceId;
+  if (!(FREE_PLAY_RACE_IDS as readonly string[]).includes(raceId)) return null;
+  return createFreePlayCharacter(raceId);
+}

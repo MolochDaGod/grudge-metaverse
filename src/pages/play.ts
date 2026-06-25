@@ -13,6 +13,7 @@ import {
   getCharacterIdFromHash,
 } from '../lib/characterSession';
 import { fetchWarlordsCharacter } from '../lib/warlordsCharacter';
+import { isFreePlayCharacter, resolveFreePlayFromId } from '../lib/freePlayRoster';
 
 export function mountPlay(container: HTMLElement): () => void {
   if (!isAuthenticated()) {
@@ -111,8 +112,16 @@ export function mountPlay(container: HTMLElement): () => void {
       let char = getActiveCharacter();
       const charId = getCharacterIdFromHash();
       if (charId && (!char || char.id !== charId)) {
-        setLoadStatus('Fetching Warlords character...');
-        char = await fetchWarlordsCharacter(charId);
+        const freePlay = resolveFreePlayFromId(charId);
+        if (freePlay) {
+          char = freePlay;
+        } else {
+          setLoadStatus('Fetching Warlords character...');
+          char = await fetchWarlordsCharacter(charId);
+        }
+      }
+      if (char && isFreePlayCharacter(char)) {
+        setLoadStatus(`Loading ${char.name} (free play)...`);
       }
       if (char) {
         setLoadStatus(`Loading ${char.name} (${char.raceId})...`);
