@@ -20,7 +20,7 @@ export function mountLanding(container: HTMLElement): () => void {
         <h1 style="font-size:48px;color:#c8a84b;letter-spacing:6px;font-family:'Cinzel',serif,system-ui;margin:0;text-shadow:0 0 40px rgba(200,168,75,0.4);">GRUDGE</h1>
         <h2 style="font-size:20px;color:#8a8070;letter-spacing:8px;margin:8px 0 32px;font-weight:300;">M E T A V E R S E</h2>
         <p style="color:#a09880;font-size:14px;line-height:1.6;margin-bottom:32px;">
-          Enter the world of Grudge Warlords. Choose your faction, build your crew, and conquer the islands.
+          Enter the Grudge Metaverse. Play all six grudge6 races free — guests welcome. Sign in to sync your Warlords characters.
         </p>
         <div style="display:flex;flex-direction:column;gap:12px;align-items:center;">
           <button id="btn-puter" style="width:280px;padding:14px;border:none;border-radius:8px;background:linear-gradient(135deg,#c8a84b,#a08030);color:#0a0a0f;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:transform 0.1s;">

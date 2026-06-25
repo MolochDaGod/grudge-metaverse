@@ -1,22 +1,34 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import {
   buildModel3d,
   resolveRaceModelUrl,
   type WarlordsCharacter,
 } from './warlordsCharacter';
 import { applyModel3d, Grudge6EquipmentManager } from './grudge6Equipment';
+import { AvatarAnimator } from './avatarAnimator';
+
+export interface LoadedAvatar {
+  group: THREE.Group;
+  animator: AvatarAnimator | null;
+}
 
 export async function loadWarlordsAvatar(
   char: WarlordsCharacter,
-): Promise<THREE.Group> {
+): Promise<LoadedAvatar> {
   const model3d = buildModel3d(char);
   const url = resolveRaceModelUrl(char.raceId);
+  const isFbx = url.toLowerCase().endsWith('.fbx');
 
-  const gltf = await new GLTFLoader().loadAsync(url);
-  const root = gltf.scene;
+  let root: THREE.Object3D;
+  if (isFbx) {
+    root = await new FBXLoader().loadAsync(url);
+  } else {
+    root = (await new GLTFLoader().loadAsync(url)).scene;
+  }
+
   root.scale.setScalar(model3d.scale);
-
   root.traverse((child) => {
     if ((child as THREE.Mesh).isMesh) {
       child.castShadow = true;
@@ -32,10 +44,20 @@ export async function loadWarlordsAvatar(
   wrapper.add(root);
   wrapper.userData.characterId = char.id;
   wrapper.userData.characterName = char.name;
-  return wrapper;
+  wrapper.userData.isFreePlay = char.id.startsWith('freeplay_');
+
+  let animator: AvatarAnimator | null = null;
+  try {
+    animator = new AvatarAnimator(root);
+    await animator.load();
+  } catch (err) {
+    console.warn('[metaverse] Animator setup failed:', err);
+  }
+
+  return { group: wrapper, animator };
 }
 
-export function createFallbackAvatar(name: string): THREE.Group {
+export function createFallbackAvatar(name: string): LoadedAvatar {
   const player = new THREE.Group();
   const body = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.5, 1.4, 8, 16),
@@ -45,5 +67,5 @@ export function createFallbackAvatar(name: string): THREE.Group {
   body.castShadow = true;
   player.add(body);
   player.userData.characterName = name;
-  return player;
+  return { group: player, animator: null };
 }

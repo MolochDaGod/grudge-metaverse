@@ -7,6 +7,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getUser, isAuthenticated } from '../lib/auth';
 import { connect, broadcastPosition, updateRemotePlayers, disconnect } from '../lib/multiplayer';
 import { createFallbackAvatar, loadWarlordsAvatar } from '../lib/avatarLoader';
+import type { AvatarAnimator } from '../lib/avatarAnimator';
 import {
   getActiveCharacter,
   getCharacterIdFromHash,
@@ -93,8 +94,10 @@ export function mountPlay(container: HTMLElement): () => void {
   ocean.position.y = -1;
   scene.add(ocean);
 
-  // Player avatar (Warlords GLB or fallback capsule)
-  let activePlayer: THREE.Group = createFallbackAvatar(displayName);
+  // Player avatar (grudge6 FBX + Bip001 anims, or fallback capsule)
+  let fallback = createFallbackAvatar(displayName);
+  let activePlayer: THREE.Group = fallback.group;
+  let avatarAnimator: AvatarAnimator | null = fallback.animator;
   activePlayer.position.set(0, 5, 0);
   scene.add(activePlayer);
 
@@ -113,11 +116,13 @@ export function mountPlay(container: HTMLElement): () => void {
       }
       if (char) {
         setLoadStatus(`Loading ${char.name} (${char.raceId})...`);
-        const avatar = await loadWarlordsAvatar(char);
-        avatar.position.copy(activePlayer.position);
-        avatar.rotation.copy(activePlayer.rotation);
+        const loaded = await loadWarlordsAvatar(char);
+        loaded.group.position.copy(activePlayer.position);
+        loaded.group.rotation.copy(activePlayer.rotation);
+        avatarAnimator?.dispose();
         scene.remove(activePlayer);
-        activePlayer = avatar;
+        activePlayer = loaded.group;
+        avatarAnimator = loaded.animator;
         scene.add(activePlayer);
       }
     } catch (err) {
@@ -269,11 +274,13 @@ export function mountPlay(container: HTMLElement): () => void {
       grounded = true;
     }
 
-    // Player rotation
+    // Player rotation + locomotion clips
     if (moving) {
       const target = Math.atan2(velocity.x, velocity.z);
       activePlayer.rotation.y += (target - activePlayer.rotation.y) * dt * 8;
     }
+    avatarAnimator?.setLocomotion(moving ? 'walk' : 'idle', keys.has('shift'));
+    avatarAnimator?.update(dt);
 
     // Camera — GTA over-the-shoulder
     const camDist = 12;
@@ -313,6 +320,7 @@ export function mountPlay(container: HTMLElement): () => void {
     removeEventListener('mouseup', onMouseUp);
     removeEventListener('mousemove', onMouseMove);
     removeEventListener('resize', onResize);
+    avatarAnimator?.dispose();
     renderer.dispose();
     canvasEl.remove();
   };

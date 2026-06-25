@@ -10,6 +10,12 @@ import {
   type WarlordsCharacter,
 } from '../lib/warlordsCharacter';
 import { setActiveCharacter } from '../lib/characterSession';
+import {
+  createFreePlayCharacter,
+  FREE_PLAY_CLASSES,
+  FREE_PLAY_RACE_IDS,
+  type FreePlayRaceId,
+} from '../lib/freePlayRoster';
 
 export function mountLobby(container: HTMLElement): () => void {
   if (!isAuthenticated()) {
@@ -36,8 +42,20 @@ export function mountLobby(container: HTMLElement): () => void {
       </header>
 
       <main style="max-width:900px;margin:0 auto;padding:32px 24px;">
+        <section style="margin-bottom:36px;">
+          <h2 style="color:#c8a84b;font-size:22px;margin-bottom:4px;">Free Play — Grudge6</h2>
+          <p style="color:#666;font-size:13px;margin-bottom:16px;">Jump in instantly with any of the six Bip001 races. Retargeted Paragon + Rokoko locomotion — no account required.</p>
+          <div id="freeplay-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:12px;"></div>
+          <label style="color:#8a8070;font-size:12px;display:flex;align-items:center;gap:8px;">
+            Class
+            <select id="freeplay-class" style="padding:6px 10px;border:1px solid #333;border-radius:6px;background:#0a0a15;color:#e0d6c0;font-size:13px;">
+              ${FREE_PLAY_CLASSES.map((c) => `<option value="${c.id}">${c.label}</option>`).join('')}
+            </select>
+          </label>
+        </section>
+
         <h2 style="color:#c8a84b;font-size:22px;margin-bottom:4px;">Your Warlords Characters</h2>
-        <p style="color:#666;font-size:13px;margin-bottom:24px;">Characters sync from Grudge Warlords — pick one to load your grudge6 avatar into the world.</p>
+        <p style="color:#666;font-size:13px;margin-bottom:24px;">Characters sync from Grudge Warlords — pick one to load your saved grudge6 avatar into the world.</p>
 
         <div id="char-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-bottom:24px;">
           <div style="padding:40px;text-align:center;color:#555;border:1px dashed rgba(200,168,75,0.2);border-radius:12px;">
@@ -80,7 +98,36 @@ export function mountLobby(container: HTMLElement): () => void {
 
   document.getElementById('btn-logout')?.addEventListener('click', logout);
   document.getElementById('btn-play-guest')?.addEventListener('click', () => {
-    window.location.hash = '#/play';
+    const classId = (document.getElementById('freeplay-class') as HTMLSelectElement)?.value || 'warrior';
+    enterWorld(createFreePlayCharacter('human', classId));
+  });
+
+  const freeGrid = document.getElementById('freeplay-grid')!;
+  const classSelect = document.getElementById('freeplay-class') as HTMLSelectElement;
+  const FACTION_COLOR: Record<string, string> = {
+    crusade: '#c9a227',
+    fabled: '#2ecc71',
+    legion: '#9b59b6',
+    wild: '#e67e22',
+  };
+
+  freeGrid.innerHTML = FREE_PLAY_RACE_IDS.map((raceId) => {
+    const race = getRaceConfig(raceId);
+    const color = FACTION_COLOR[race.faction] ?? '#c8a84b';
+    return `
+      <button class="btn-freeplay" data-race="${raceId}" style="padding:14px 10px;border:1px solid rgba(200,168,75,0.25);border-radius:10px;background:rgba(20,20,35,0.9);color:#e0d6c0;cursor:pointer;text-align:left;">
+        <div style="width:8px;height:8px;border-radius:50%;background:${color};margin-bottom:8px;"></div>
+        <div style="font-weight:700;font-size:14px;color:#c8a84b;">${race.label}</div>
+        <div style="font-size:11px;color:#666;margin-top:2px;">${race.faction}</div>
+      </button>`;
+  }).join('');
+
+  freeGrid.querySelectorAll('.btn-freeplay').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const raceId = (btn as HTMLElement).getAttribute('data-race') as FreePlayRaceId;
+      const classId = classSelect?.value || 'warrior';
+      enterWorld(createFreePlayCharacter(raceId, classId));
+    });
   });
 
   const modal = document.getElementById('create-modal')!;
