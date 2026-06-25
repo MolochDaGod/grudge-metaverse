@@ -100,11 +100,74 @@ function parseUserFromResponse(data: any): GrudgeUser {
   };
 }
 
+// ── Bridge grudge_token (id.grudge-studio.com launch JWT) → Railway session ──
+// Matches grudge-fleet.js / GrudgeBuilder wireGrudgeFleet flow.
+
+function cleanUrlParams(keys: string[]): void {
+  const params = new URLSearchParams(window.location.search);
+  keys.forEach((k) => params.delete(k));
+  const clean = params.toString();
+  window.history.replaceState(
+    {},
+    '',
+    window.location.pathname + (clean ? `?${clean}` : '') + window.location.hash,
+  );
+}
+
+export async function bridgeGrudgeLaunchToken(launchToken: string): Promise<boolean> {
+  try {
+    const exchange = await fetch(`${API_URL}/auth/session/exchange`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: launchToken, audience: window.location.origin }),
+    });
+    if (!exchange.ok) {
+      console.warn('[auth] session/exchange failed:', exchange.status);
+      return false;
+    }
+    const profile = await exchange.json();
+
+    const bridge = await fetch(`${AUTH_BASE}/puter`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        puterId: `grudge_${profile.grudgeId}`,
+        puterUuid: `grudge_${profile.grudgeId}`,
+        displayName: profile.displayName || profile.username,
+      }),
+    });
+    if (!bridge.ok) {
+      console.warn('[auth] Railway puter bridge failed:', bridge.status);
+      return false;
+    }
+
+    const data = await bridge.json();
+    const user = parseUserFromResponse(data);
+    const token = data.sessionToken || data.token || null;
+    if (!user.grudgeId) return false;
+    setAuth(token, { ...user, isGuest: false });
+    console.log('[auth] grudge_token session:', user.grudgeId, user.username);
+    return true;
+  } catch (err) {
+    console.warn('[auth] grudge_token bridge failed:', err);
+    return false;
+  }
+}
+
 // ── Handle SSO callback tokens in URL ────────────────────────
-// SSO redirects return to /?sso_token=JWT&grudge_id=GRDG-XXXX
+// Supports: ?grudge_token=JWT (fleet SSO), ?sso_token=JWT&grudge_id=...
 
 export async function handleAuthCallback(): Promise<boolean> {
   const params = new URLSearchParams(window.location.search);
+
+  const launchToken = params.get('grudge_token');
+  if (launchToken) {
+    cleanUrlParams(['grudge_token']);
+    return bridgeGrudgeLaunchToken(launchToken);
+  }
+
   const token = params.get('sso_token') || params.get('token');
   if (!token) return false;
 
@@ -112,8 +175,7 @@ export async function handleAuthCallback(): Promise<boolean> {
   const grudgeId = params.get('grudge_id') || params.get('grudgeId') || '';
   const username = params.get('grudge_username') || params.get('username') || '';
 
-  // Clean URL so the token isn't lingering
-  window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+  cleanUrlParams(['sso_token', 'token', 'grudge_id', 'grudgeId', 'grudge_username', 'username']);
 
   // Store immediately from params so we don't lose the session
   if (grudgeId) {
