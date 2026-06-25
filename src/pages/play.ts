@@ -6,6 +6,12 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getUser, isAuthenticated } from '../lib/auth';
 import { connect, broadcastPosition, updateRemotePlayers, disconnect } from '../lib/multiplayer';
+import { createFallbackAvatar, loadWarlordsAvatar } from '../lib/avatarLoader';
+import {
+  getActiveCharacter,
+  getCharacterIdFromHash,
+} from '../lib/characterSession';
+import { fetchWarlordsCharacter } from '../lib/warlordsCharacter';
 
 export function mountPlay(container: HTMLElement): () => void {
   if (!isAuthenticated()) {
@@ -14,12 +20,14 @@ export function mountPlay(container: HTMLElement): () => void {
   }
 
   const user = getUser();
+  const activeChar = getActiveCharacter();
+  const displayName = activeChar?.name || user?.displayName || 'Player';
   container.innerHTML = `
     <div id="play-canvas"></div>
     <div id="play-hud" style="position:fixed;top:0;left:0;width:100%;pointer-events:none;z-index:10;padding:12px;display:flex;justify-content:space-between;align-items:flex-start;">
       <div style="pointer-events:auto;background:rgba(10,10,20,0.85);border:1px solid rgba(200,168,75,0.3);border-radius:8px;padding:10px 14px;backdrop-filter:blur(8px);">
         <div style="color:#c8a84b;font-size:14px;font-weight:700;letter-spacing:1px;">⚔ GRUDGE METAVERSE</div>
-        <div style="color:#666;font-size:11px;">${user?.displayName || 'Player'} · ${user?.gold || 0}g</div>
+        <div style="color:#666;font-size:11px;">${displayName}${activeChar ? ` · ${activeChar.raceId} ${activeChar.classId}` : ''} · ${user?.gold || 0}g</div>
       </div>
       <div style="pointer-events:auto;background:rgba(10,10,20,0.85);border:1px solid rgba(200,168,75,0.3);border-radius:8px;padding:10px 14px;backdrop-filter:blur(8px);color:#8a8070;font-size:12px;line-height:1.6;">
         <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">W</kbd>
@@ -33,6 +41,7 @@ export function mountPlay(container: HTMLElement): () => void {
     <div id="play-loading" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a0a0f;z-index:100;color:#c8a84b;font-family:system-ui;">
       <div style="width:40px;height:40px;border:3px solid rgba(200,168,75,0.2);border-top-color:#c8a84b;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;"></div>
       <div style="font-size:16px;letter-spacing:2px;">Loading World...</div>
+      <div id="load-status" style="color:#8a8070;font-size:12px;margin-top:8px;">Preparing avatar...</div>
       <div id="load-progress" style="color:#555;font-size:12px;margin-top:8px;">0%</div>
     </div>
     <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
@@ -84,23 +93,38 @@ export function mountPlay(container: HTMLElement): () => void {
   ocean.position.y = -1;
   scene.add(ocean);
 
-  // Player
-  const player = new THREE.Group();
-  const body = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.5, 1.4, 8, 16),
-    new THREE.MeshStandardMaterial({ color: 0xc8a84b, roughness: 0.5, metalness: 0.3 }),
-  );
-  body.position.y = 1.2;
-  body.castShadow = true;
-  player.add(body);
-  const visor = new THREE.Mesh(
-    new THREE.BoxGeometry(0.6, 0.18, 0.12),
-    new THREE.MeshStandardMaterial({ color: 0x2244aa, emissive: 0x1133ff, emissiveIntensity: 0.5 }),
-  );
-  visor.position.set(0, 1.7, -0.5);
-  player.add(visor);
-  player.position.set(0, 5, 0);
-  scene.add(player);
+  // Player avatar (Warlords GLB or fallback capsule)
+  let activePlayer: THREE.Group = createFallbackAvatar(displayName);
+  activePlayer.position.set(0, 5, 0);
+  scene.add(activePlayer);
+
+  const setLoadStatus = (msg: string) => {
+    const el = document.getElementById('load-status');
+    if (el) el.textContent = msg;
+  };
+
+  (async () => {
+    try {
+      let char = getActiveCharacter();
+      const charId = getCharacterIdFromHash();
+      if (charId && (!char || char.id !== charId)) {
+        setLoadStatus('Fetching Warlords character...');
+        char = await fetchWarlordsCharacter(charId);
+      }
+      if (char) {
+        setLoadStatus(`Loading ${char.name} (${char.raceId})...`);
+        const avatar = await loadWarlordsAvatar(char);
+        avatar.position.copy(activePlayer.position);
+        avatar.rotation.copy(activePlayer.rotation);
+        scene.remove(activePlayer);
+        activePlayer = avatar;
+        scene.add(activePlayer);
+      }
+    } catch (err) {
+      console.warn('[metaverse] Avatar load failed, using fallback:', err);
+      setLoadStatus('Using guest avatar');
+    }
+  })();
 
   // ── Load Baked Map ──────────────────────────────────────────
   const loader = new GLTFLoader();
@@ -123,7 +147,7 @@ export function mountPlay(container: HTMLElement): () => void {
       // Find spawn point (center of the map's bounding box)
       const box = new THREE.Box3().setFromObject(world);
       const center = box.getCenter(new THREE.Vector3());
-      player.position.set(center.x, box.max.y + 5, center.z);
+      activePlayer.position.set(center.x, box.max.y + 5, center.z);
 
       // Hide loading
       document.getElementById('play-loading')?.classList.add('hidden');
@@ -229,18 +253,18 @@ export function mountPlay(container: HTMLElement): () => void {
     moveDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
 
     velocity.lerp(moveDir.multiplyScalar(speed), dt * 5);
-    player.position.x += velocity.x * dt;
-    player.position.z += velocity.z * dt;
+    activePlayer.position.x += velocity.x * dt;
+    activePlayer.position.z += velocity.z * dt;
 
     // Jump
     if (keys.has(' ') && grounded) { jumpVel = 14; grounded = false; }
     jumpVel -= 35 * dt;
-    player.position.y += jumpVel * dt;
+    activePlayer.position.y += jumpVel * dt;
 
     // Terrain snap
-    const h = getHeight(player.position.x, player.position.z);
-    if (player.position.y <= h + 0.1) {
-      player.position.y = h;
+    const h = getHeight(activePlayer.position.x, activePlayer.position.z);
+    if (activePlayer.position.y <= h + 0.1) {
+      activePlayer.position.y = h;
       jumpVel = 0;
       grounded = true;
     }
@@ -248,7 +272,7 @@ export function mountPlay(container: HTMLElement): () => void {
     // Player rotation
     if (moving) {
       const target = Math.atan2(velocity.x, velocity.z);
-      player.rotation.y += (target - player.rotation.y) * dt * 8;
+      activePlayer.rotation.y += (target - activePlayer.rotation.y) * dt * 8;
     }
 
     // Camera — GTA over-the-shoulder
@@ -256,13 +280,13 @@ export function mountPlay(container: HTMLElement): () => void {
     const camHeight = 6 + cameraPitch * 8;
     const camOffset = new THREE.Vector3(0, camHeight, camDist);
     camOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
-    const camTarget = player.position.clone();
+    const camTarget = activePlayer.position.clone();
     camera.position.lerp(camTarget.clone().add(camOffset), dt * 4);
     camera.lookAt(camTarget.x, camTarget.y + 2, camTarget.z);
 
     // Sun follows player for shadow quality
-    sun.position.set(player.position.x + 80, 120, player.position.z + 50);
-    sun.target.position.copy(player.position);
+    sun.position.set(activePlayer.position.x + 80, 120, activePlayer.position.z + 50);
+    sun.target.position.copy(activePlayer.position);
 
     // Ocean animation
     ocean.material.opacity = 0.8 + Math.sin(clock.elapsedTime * 0.3) * 0.05;
@@ -270,7 +294,7 @@ export function mountPlay(container: HTMLElement): () => void {
     // Multiplayer broadcast (10 Hz)
     broadcastTimer += dt;
     if (broadcastTimer > 0.1) {
-      broadcastPosition(player.position, player.rotation.y);
+      broadcastPosition(activePlayer.position, activePlayer.rotation.y);
       broadcastTimer = 0;
     }
     updateRemotePlayers(dt);

@@ -1,18 +1,15 @@
 /**
- * Lobby Page — Character select, create character, enter world.
+ * Lobby Page — Load Grudge Warlords characters, select, enter metaverse world.
  */
 
-import { isAuthenticated, getUser, authHeaders, logout, API_URL } from '../lib/auth';
-
-interface Character {
-  id: number;
-  name: string;
-  race: string;
-  class: string;
-  level: number;
-  faction: string;
-  hp: number;
-}
+import { isAuthenticated, getUser, logout } from '../lib/auth';
+import {
+  createWarlordsCharacter,
+  fetchWarlordsCharacters,
+  getRaceConfig,
+  type WarlordsCharacter,
+} from '../lib/warlordsCharacter';
+import { setActiveCharacter } from '../lib/characterSession';
 
 export function mountLobby(container: HTMLElement): () => void {
   if (!isAuthenticated()) {
@@ -39,8 +36,8 @@ export function mountLobby(container: HTMLElement): () => void {
       </header>
 
       <main style="max-width:900px;margin:0 auto;padding:32px 24px;">
-        <h2 style="color:#c8a84b;font-size:22px;margin-bottom:4px;">Select Your Character</h2>
-        <p style="color:#666;font-size:13px;margin-bottom:24px;">Choose a character to enter the world, or create a new one.</p>
+        <h2 style="color:#c8a84b;font-size:22px;margin-bottom:4px;">Your Warlords Characters</h2>
+        <p style="color:#666;font-size:13px;margin-bottom:24px;">Characters sync from Grudge Warlords — pick one to load your grudge6 avatar into the world.</p>
 
         <div id="char-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-bottom:24px;">
           <div style="padding:40px;text-align:center;color:#555;border:1px dashed rgba(200,168,75,0.2);border-radius:12px;">
@@ -48,18 +45,17 @@ export function mountLobby(container: HTMLElement): () => void {
           </div>
         </div>
 
-        <div style="display:flex;gap:12px;">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
           <button id="btn-create" style="padding:12px 24px;border:1px solid rgba(200,168,75,0.3);border-radius:8px;background:rgba(200,168,75,0.1);color:#c8a84b;font-size:14px;font-weight:600;cursor:pointer;">
             + Create Character
           </button>
           <button id="btn-play-guest" style="padding:12px 24px;border:none;border-radius:8px;background:#2a6b2a;color:white;font-size:14px;font-weight:600;cursor:pointer;">
-            ▶ Enter World (No Character)
+            ▶ Enter World (Guest Avatar)
           </button>
         </div>
       </main>
 
-      <!-- Create Character Modal -->
-      <div id="create-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:100;display:none;align-items:center;justify-content:center;">
+      <div id="create-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:100;align-items:center;justify-content:center;">
         <div style="background:#12121f;border:1px solid rgba(200,168,75,0.3);border-radius:12px;padding:32px;max-width:400px;width:90%;">
           <h3 style="color:#c8a84b;margin:0 0 20px;">Create Character</h3>
           <input id="char-name" placeholder="Character name" style="width:100%;padding:10px;border:1px solid #333;border-radius:6px;background:#0a0a15;color:#e0d6c0;margin-bottom:12px;font-size:14px;" />
@@ -87,87 +83,78 @@ export function mountLobby(container: HTMLElement): () => void {
     window.location.hash = '#/play';
   });
 
-  // Character modal
   const modal = document.getElementById('create-modal')!;
   document.getElementById('btn-create')?.addEventListener('click', () => { modal.style.display = 'flex'; });
   document.getElementById('btn-cancel-create')?.addEventListener('click', () => { modal.style.display = 'none'; });
 
   document.getElementById('btn-confirm-create')?.addEventListener('click', async () => {
     const name = (document.getElementById('char-name') as HTMLInputElement).value.trim();
-    const race = (document.getElementById('char-race') as HTMLSelectElement).value;
-    const cls = (document.getElementById('char-class') as HTMLSelectElement).value;
+    const raceId = (document.getElementById('char-race') as HTMLSelectElement).value;
+    const classId = (document.getElementById('char-class') as HTMLSelectElement).value;
     const errEl = document.getElementById('create-error')!;
 
     if (!name) { errEl.textContent = 'Name required'; errEl.style.display = 'block'; return; }
 
     try {
-      const res = await fetch(`${API_URL}/characters`, {
-        method: 'POST',
-        headers: authHeaders(),
-        credentials: 'include',
-        body: JSON.stringify({ name, raceId: race, classId: cls }),
-      });
-      const data = await res.json();
-      if (!res.ok) { errEl.textContent = data.error || 'Failed'; errEl.style.display = 'block'; return; }
+      await createWarlordsCharacter({ name, raceId, classId });
       modal.style.display = 'none';
+      errEl.style.display = 'none';
       loadCharacters();
-    } catch {
-      errEl.textContent = 'Network error'; errEl.style.display = 'block';
+    } catch (e) {
+      errEl.textContent = e instanceof Error ? e.message : 'Failed';
+      errEl.style.display = 'block';
     }
   });
 
-  // Load characters
+  function enterWorld(char: WarlordsCharacter) {
+    setActiveCharacter(char);
+    window.location.hash = `#/play?char=${encodeURIComponent(char.id)}`;
+  }
+
   async function loadCharacters() {
     const listEl = document.getElementById('char-list')!;
     try {
-      const res = await fetch(`${API_URL}/characters`, {
-        headers: authHeaders(),
-        credentials: 'include',
-      });
-      // If response is HTML instead of JSON, the API is routing to frontend
-      const contentType = res.headers.get('content-type') || '';
-      if (!res.ok || contentType.includes('text/html')) throw new Error('API unavailable');
-      const data = await res.json();
-      const chars: Character[] = data.characters || data || [];
+      const chars = await fetchWarlordsCharacters();
 
       if (chars.length === 0) {
-        listEl.innerHTML = `<div style="padding:40px;text-align:center;color:#555;border:1px dashed rgba(200,168,75,0.2);border-radius:12px;grid-column:1/-1;">No characters yet. Create one to begin!</div>`;
+        listEl.innerHTML = `<div style="padding:40px;text-align:center;color:#555;border:1px dashed rgba(200,168,75,0.2);border-radius:12px;grid-column:1/-1;">No Warlords characters yet. Create one here or on <a href="https://grudgewarlords.com/character" style="color:#c8a84b;">grudgewarlords.com</a>.</div>`;
         return;
       }
 
-      listEl.innerHTML = chars.map(c => `
-        <div class="char-card" data-id="${c.id}" style="padding:20px;border:1px solid rgba(200,168,75,0.2);border-radius:12px;background:rgba(20,20,35,0.8);cursor:pointer;transition:border-color 0.2s;">
+      listEl.innerHTML = chars.map((c) => {
+        const race = getRaceConfig(c.raceId);
+        return `
+        <div class="char-card" style="padding:20px;border:1px solid rgba(200,168,75,0.2);border-radius:12px;background:rgba(20,20,35,0.8);">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <span style="color:#c8a84b;font-weight:700;font-size:16px;">${c.name}</span>
-            <span style="color:#666;font-size:12px;">Lv ${c.level}</span>
+            <span style="color:#666;font-size:12px;">Lv ${c.level ?? 1}</span>
           </div>
-          <div style="color:#8a8070;font-size:13px;">${c.race} ${c.class}</div>
-          <div style="color:#555;font-size:12px;margin-top:4px;">${c.faction || 'No faction'} · ${c.hp} HP</div>
+          <div style="color:#8a8070;font-size:13px;">${race.label} · ${c.classId}</div>
+          <div style="color:#555;font-size:12px;margin-top:4px;">${race.faction} · ${c.hp ?? 100} HP</div>
           <button class="btn-enter" data-id="${c.id}" style="margin-top:12px;width:100%;padding:8px;border:none;border-radius:6px;background:#2a6b2a;color:white;font-weight:600;cursor:pointer;font-size:13px;">
-            ▶ Enter World
+            ▶ Load Into World
           </button>
-        </div>
-      `).join('');
+        </div>`;
+      }).join('');
 
-      listEl.querySelectorAll('.btn-enter').forEach(btn => {
+      listEl.querySelectorAll('.btn-enter').forEach((btn) => {
         btn.addEventListener('click', (e) => {
-          const charId = (e.target as HTMLElement).getAttribute('data-id');
-          window.location.hash = `#/play?char=${charId}`;
+          const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
+          const char = chars.find((c) => c.id === id);
+          if (char) enterWorld(char);
         });
       });
     } catch {
-      // Guest without token or API unavailable — show friendly message
       const isGuest = user?.isGuest;
       listEl.innerHTML = `<div style="padding:40px;text-align:center;color:${isGuest ? '#8a8070' : '#ff6644'};border:1px solid rgba(${isGuest ? '200,168,75,0.2' : '255,100,50,0.2'});border-radius:12px;grid-column:1/-1;">
         ${isGuest
-          ? 'Guest mode — enter the world directly! Create a Grudge ID account for persistent characters.'
-          : 'Could not connect to game server. Characters will be available when api.grudge-studio.com is online.'
+          ? 'Guest mode — enter the world directly! Sign in with Grudge ID to load your Warlords characters.'
+          : 'Could not load Warlords characters. Sign in with Grudge ID and ensure api.grudge-studio.com is reachable.'
         }
       </div>`;
     }
   }
 
   loadCharacters();
-
   return () => {};
 }
