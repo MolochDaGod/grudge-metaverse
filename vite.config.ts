@@ -10,13 +10,13 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api\/auth/, '/auth'),
       },
       '/api/characters': {
-        target: 'https://api.grudge-studio.com',
+        target: 'https://grudge-builder-production.up.railway.app',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '/api'),
       },
       '/api': {
         target: 'https://api.grudge-studio.com',
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },

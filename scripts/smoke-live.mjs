@@ -8,7 +8,7 @@ const base = (process.argv[2] || 'https://metaverse.grudge-studio.com').replace(
 const checks = [
   { name: 'metaverse SPA', url: `${base}/`, expect: 'Grudge Metaverse' },
   { name: 'human race GLB', url: 'https://assets.grudge-studio.com/models/characters/races/human.glb', expect: null, head: true },
-  { name: 'characters API (auth required)', url: `${base}/api/characters`, expect: null, allow401: true },
+  { name: 'characters API (Warlords Railway)', url: `${base}/api/characters`, expectJsonArray: true },
 ];
 
 let failed = 0;
@@ -16,12 +16,11 @@ let failed = 0;
 for (const c of checks) {
   try {
     const res = await fetch(c.url, c.head ? { method: 'HEAD' } : {});
-    if (c.allow401 && res.status === 401) {
-      console.log(`OK  ${c.name} (401 without token — expected)`);
-      continue;
-    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    if (c.expect) {
+    if (c.expectJsonArray) {
+      const data = await res.json();
+      if (!Array.isArray(data)) throw new Error('expected JSON array');
+    } else if (c.expect) {
       const text = await res.text();
       if (!text.includes(c.expect)) throw new Error(`missing "${c.expect}"`);
     }
