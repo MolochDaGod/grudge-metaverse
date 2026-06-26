@@ -29,9 +29,12 @@ const METAVERSE_TO_KIT_RACE: Record<string, KitRaceId> = {
 
 const VALID_CLASSES = new Set(['warrior', 'mage', 'ranger', 'worg']);
 
-/** Host serving grudge-game (base path /game). Proxied in prod via vercel.json. */
+/**
+ * Character-Animator-two grudge-game (GameCharacter + animDirector).
+ * NOT client.grudge-studio.com — that host serves GrudgeBuilder Colyseus PlayPage.
+ */
 export const GRUDGE_GAME_BASE = import.meta.env.VITE_GRUDGE_GAME_BASE
-  ?? (import.meta.env.DEV ? 'http://localhost:3000/game' : 'https://client.grudge-studio.com/game');
+  ?? (import.meta.env.DEV ? 'http://localhost:3000/game' : 'https://grudge-game.pages.dev/game');
 
 export function metaverseRaceToKit(raceId: string): KitRaceId {
   return METAVERSE_TO_KIT_RACE[raceId] ?? 'western-kingdoms';

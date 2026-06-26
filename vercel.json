@@ -9,7 +9,7 @@
     { "source": "/api/:path*", "destination": "https://api.grudge-studio.com/:path*" },
     { "source": "/assets-cdn/:path*", "destination": "https://assets.grudge-studio.com/:path*" },
     { "source": "/api/assets/:path*", "destination": "https://assets.grudge-studio.com/:path*" },
-    { "source": "/game/:path*", "destination": "https://client.grudge-studio.com/game/:path*" },
+    { "source": "/game/:path*", "destination": "https://grudge-game.pages.dev/game/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
