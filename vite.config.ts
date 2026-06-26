@@ -85,7 +85,7 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/island-3d': {
-        target: 'http://localhost:5173',
+        target: 'http://localhost:5000',
         changeOrigin: true,
       },
     },
