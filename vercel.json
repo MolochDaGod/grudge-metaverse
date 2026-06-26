@@ -10,6 +10,14 @@
     { "source": "/assets-cdn/:path*", "destination": "https://assets.grudge-studio.com/:path*" },
     { "source": "/api/assets/:path*", "destination": "https://assets.grudge-studio.com/:path*" },
     { "source": "/game/:path*", "destination": "https://grudge-game.pages.dev/game/:path*" },
+    {
+      "source": "/test",
+      "destination": "https://client.grudge-studio.com/island-3d?engine=legacy&mode=lobby&map=pirate-islands"
+    },
+    {
+      "source": "/test/:path*",
+      "destination": "https://client.grudge-studio.com/island-3d?engine=legacy&mode=lobby&map=pirate-islands"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

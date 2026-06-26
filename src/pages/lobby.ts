@@ -11,6 +11,7 @@ import {
 } from '../lib/warlordsCharacter';
 import { setActiveCharacter } from '../lib/characterSession';
 import { buildWorldUrl } from '../lib/worldBridge';
+import { buildPirateTestUrl } from '../lib/engineBridge';
 import {
   createFreePlayCharacter,
   FREE_PLAY_CLASSES,
@@ -64,14 +65,21 @@ export function mountLobby(container: HTMLElement): () => void {
           </div>
         </div>
 
-        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
           <button id="btn-create" style="padding:12px 24px;border:1px solid rgba(200,168,75,0.3);border-radius:8px;background:rgba(200,168,75,0.1);color:#c8a84b;font-size:14px;font-weight:600;cursor:pointer;">
             + Create Character
           </button>
           <button id="btn-play-guest" style="padding:12px 24px;border:none;border-radius:8px;background:#2a6b2a;color:white;font-size:14px;font-weight:600;cursor:pointer;">
-            ▶ Enter World (Guest Avatar)
+            ▶ Character Test (grudge-game)
+          </button>
+          <button id="btn-pirate-test" style="padding:12px 24px;border:1px solid rgba(56,120,180,0.45);border-radius:8px;background:rgba(30,60,100,0.35);color:#7ec8ff;font-size:14px;font-weight:600;cursor:pointer;">
+            ⚓ Pirate Islands Engine
           </button>
         </div>
+        <p style="color:#555;font-size:11px;margin-top:10px;">
+          <strong style="color:#6a8aaa;font-weight:600;">Pirate Islands</strong> opens GrudgeBuilder Island3DEngine on the Chicken Gun lobby map.
+          <strong style="color:#6a8aaa;font-weight:600;">Character Test</strong> opens grudge-game /world (GameCharacter).
+        </p>
       </main>
 
       <div id="create-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:100;align-items:center;justify-content:center;">
@@ -101,6 +109,13 @@ export function mountLobby(container: HTMLElement): () => void {
   document.getElementById('btn-play-guest')?.addEventListener('click', () => {
     const classId = (document.getElementById('freeplay-class') as HTMLSelectElement)?.value || 'warrior';
     enterWorld(createFreePlayCharacter('human', classId));
+  });
+
+  document.getElementById('btn-pirate-test')?.addEventListener('click', () => {
+    const classId = (document.getElementById('freeplay-class') as HTMLSelectElement)?.value || 'warrior';
+    const char = createFreePlayCharacter('human', classId);
+    setActiveCharacter(char);
+    window.location.assign(buildPirateTestUrl(char));
   });
 
   const freeGrid = document.getElementById('freeplay-grid')!;
