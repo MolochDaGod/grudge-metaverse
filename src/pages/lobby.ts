@@ -45,7 +45,7 @@ export function mountLobby(container: HTMLElement): () => void {
       <main style="max-width:900px;margin:0 auto;padding:32px 24px;">
         <section style="margin-bottom:36px;">
           <h2 style="color:#c8a84b;font-size:22px;margin-bottom:4px;">Free Play — Grudge6</h2>
-          <p style="color:#666;font-size:13px;margin-bottom:16px;">Human · Barbarian · Orc · Undead · Elf · Dwarf — opens the live <strong style="color:#8a8070;font-weight:600;">/game/world</strong> scene (GameCharacter + baked anims).</p>
+          <p style="color:#666;font-size:13px;margin-bottom:16px;">Human · Barbarian · Orc · Undead · Elf · Dwarf — opens Character-Animator-two <strong style="color:#8a8070;font-weight:600;">grudge-game /world</strong> (GameCharacter · animDirector · character-kit).</p>
           <div id="freeplay-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:12px;"></div>
           <label style="color:#8a8070;font-size:12px;display:flex;align-items:center;gap:8px;">
             Class
