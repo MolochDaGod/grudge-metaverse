@@ -1,6 +1,6 @@
 /**
  * Grudge Metaverse — Main entry point with hash-based router.
- * Routes: #/ (landing), #/lobby, #/game (live test), #/play (multiplayer world)
+ * Routes: #/ (landing), #/lobby, #/game → /game/world (Character-Animator-two), #/play (island)
  */
 
 import { handleAuthCallback } from './lib/auth';
