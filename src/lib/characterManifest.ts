@@ -3,12 +3,30 @@
  */
 import { ASSETS_CDN } from './warlordsCharacter';
 
-export const METAVERSE_AVATAR_BASE = `${ASSETS_CDN}/models/grudge6/metaverse`;
+/** Same-origin baked GLBs (metaverse host + local dev middleware). */
+export const METAVERSE_AVATAR_LOCAL = '/models/grudge6/metaverse';
+/** CDN baked GLBs. */
+export const METAVERSE_AVATAR_CDN = `${ASSETS_CDN}/models/grudge6/metaverse`;
 export const RACE_GLB_BASE = `${ASSETS_CDN}/models/characters/races`;
 
-/** Bundled avatar GLB (preferred) — idle, walk, run, hit, attack embedded */
+export interface AvatarUrlCandidate {
+  url: string;
+  label: string;
+}
+
+/** Try same-origin first, then CDN — avoids silent CDN/CORS failures on deploy. */
+export function avatarGlbCandidates(raceId: string): AvatarUrlCandidate[] {
+  const file = `${raceId}.glb`;
+  return [
+    { url: `${METAVERSE_AVATAR_LOCAL}/${file}`, label: 'local-metaverse' },
+    { url: `${METAVERSE_AVATAR_CDN}/${file}`, label: 'cdn-metaverse' },
+    { url: `${RACE_GLB_BASE}/${raceId}.glb`, label: 'race-glb-fallback' },
+  ];
+}
+
+/** @deprecated use avatarGlbCandidates */
 export function bundledAvatarUrl(raceId: string): string {
-  return `${METAVERSE_AVATAR_BASE}/${raceId}.glb`;
+  return `${METAVERSE_AVATAR_CDN}/${raceId}.glb`;
 }
 
 /** Fallback race GLB (FBX→GLTF converted, mixamo skeleton) */

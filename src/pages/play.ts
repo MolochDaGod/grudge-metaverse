@@ -8,15 +8,26 @@ import { getUser, isAuthenticated } from '../lib/auth';
 import { connect, broadcastPosition, updateRemotePlayers, disconnect } from '../lib/multiplayer';
 import { createFallbackAvatar, loadWarlordsAvatar } from '../lib/avatarLoader';
 import type { AvatarAnimator } from '../lib/avatarAnimator';
+import type { GroundRay } from '../lib/animator/footIk';
 import { CharacterController } from '../lib/characterController';
 import {
   getActiveCharacter,
   getCharacterIdFromHash,
 } from '../lib/characterSession';
 import { fetchWarlordsCharacter } from '../lib/warlordsCharacter';
-import { isFreePlayCharacter, resolveFreePlayFromId } from '../lib/freePlayRoster';
+import { createFreePlayCharacter, isFreePlayCharacter, resolveFreePlayFromId } from '../lib/freePlayRoster';
 
-export function mountPlay(container: HTMLElement): () => void {
+export interface PlayMountOptions {
+  mode?: 'play' | 'game';
+  footIk?: boolean;
+  title?: string;
+  subtitle?: string;
+}
+
+export function mountPlay(container: HTMLElement, opts: PlayMountOptions = {}): () => void {
+  const footIk = opts.footIk ?? opts.mode === 'game';
+  const hudTitle = opts.title ?? '⚔ GRUDGE METAVERSE';
+  const hudSubtitle = opts.subtitle ?? '';
   if (!isAuthenticated()) {
     window.location.hash = '#/lobby';
     return () => {};
@@ -29,15 +40,16 @@ export function mountPlay(container: HTMLElement): () => void {
     <div id="play-canvas"></div>
     <div id="play-hud" style="position:fixed;top:0;left:0;width:100%;pointer-events:none;z-index:10;padding:12px;display:flex;justify-content:space-between;align-items:flex-start;">
       <div style="pointer-events:auto;background:rgba(10,10,20,0.85);border:1px solid rgba(200,168,75,0.3);border-radius:8px;padding:10px 14px;backdrop-filter:blur(8px);">
-        <div style="color:#c8a84b;font-size:14px;font-weight:700;letter-spacing:1px;">⚔ GRUDGE METAVERSE</div>
-        <div style="color:#666;font-size:11px;">${displayName}${activeChar ? ` · ${activeChar.raceId} ${activeChar.classId}` : ''} · ${user?.gold || 0}g</div>
+        <div style="color:#c8a84b;font-size:14px;font-weight:700;letter-spacing:1px;">${hudTitle}</div>
+        <div style="color:#666;font-size:11px;">${displayName}${activeChar ? ` · ${activeChar.raceId} ${activeChar.classId}` : ''} · ${user?.gold || 0}g${hudSubtitle ? ` · ${hudSubtitle}` : ''}</div>
+        <div id="avatar-status" style="color:#8a8070;font-size:10px;margin-top:4px;">Loading avatar…</div>
       </div>
       <div style="pointer-events:auto;background:rgba(10,10,20,0.85);border:1px solid rgba(200,168,75,0.3);border-radius:8px;padding:10px 14px;backdrop-filter:blur(8px);color:#8a8070;font-size:12px;line-height:1.6;">
         <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">W</kbd>
         <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">A</kbd>
         <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">S</kbd>
         <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">D</kbd>
-        Move · <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">Shift</kbd> Sprint · <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">Space</kbd> Jump · LMB look
+        Move · <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">Shift</kbd> Sprint · <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">Space</kbd> Jump · <kbd style="background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.3);border-radius:3px;padding:1px 5px;color:#c8a84b;font-family:monospace;">F</kbd> Attack · LMB look
         <br><button id="btn-back" style="margin-top:6px;pointer-events:auto;padding:4px 10px;border:1px solid #444;border-radius:4px;background:transparent;color:#888;cursor:pointer;font-size:11px;">← Back to Lobby</button>
       </div>
     </div>
@@ -101,14 +113,19 @@ export function mountPlay(container: HTMLElement): () => void {
   playerRoot.position.set(0, 5, 0);
   scene.add(playerRoot);
 
-  let fallback = createFallbackAvatar(displayName);
-  let activePlayer: THREE.Group = fallback.group;
-  let avatarAnimator: AvatarAnimator | null = fallback.animator;
-  playerRoot.add(activePlayer);
+  let activePlayer: THREE.Group | null = null;
+  let avatarAnimator: AvatarAnimator | null = null;
 
   const setLoadStatus = (msg: string) => {
     const el = document.getElementById('load-status');
     if (el) el.textContent = msg;
+  };
+  const setAvatarStatus = (msg: string, ok = true) => {
+    const el = document.getElementById('avatar-status');
+    if (el) {
+      el.textContent = msg;
+      el.style.color = ok ? '#6a9a6a' : '#cc6644';
+    }
   };
 
   (async () => {
@@ -124,23 +141,28 @@ export function mountPlay(container: HTMLElement): () => void {
           char = await fetchWarlordsCharacter(charId);
         }
       }
-      if (char && isFreePlayCharacter(char)) {
+      if (!char) {
+        char = createFreePlayCharacter('human', 'warrior');
+        setLoadStatus('Default human recruit (free play)');
+      }
+      if (isFreePlayCharacter(char)) {
         setLoadStatus(`Loading ${char.name} (free play)...`);
       }
-      if (char) {
-        setLoadStatus(`Loading ${char.name} (${char.raceId} GLTF)...`);
-        const loaded = await loadWarlordsAvatar(char);
-        const src = loaded.group.userData.avatarSource as string | undefined;
-        if (src) setLoadStatus(`${char.name} ready (${src})`);
-        avatarAnimator?.dispose();
-        playerRoot.remove(activePlayer);
-        activePlayer = loaded.group;
-        avatarAnimator = loaded.animator;
-        playerRoot.add(activePlayer);
-      }
+      setLoadStatus(`Loading ${char.name} (${char.raceId} GLB + atlas)...`);
+      const loaded = await loadWarlordsAvatar(char);
+      const src = loaded.group.userData.avatarSource as string | undefined;
+      avatarAnimator?.dispose();
+      if (activePlayer) playerRoot.remove(activePlayer);
+      activePlayer = loaded.group;
+      avatarAnimator = loaded.animator;
+      playerRoot.add(activePlayer);
+      setLoadStatus(`${char.name} in world`);
+      setAvatarStatus(`${char.raceId} · ${src ?? 'bundled'} · ${loaded.group.userData.clipCount ?? '?'} clips`);
     } catch (err) {
-      console.warn('[metaverse] Avatar load failed, using fallback:', err);
-      setLoadStatus('Using guest avatar');
+      const msg = err instanceof Error ? err.message : 'Avatar load failed';
+      console.error('[metaverse] Avatar load failed:', err);
+      setLoadStatus('Avatar load failed');
+      setAvatarStatus(msg, false);
     }
   })();
 
@@ -200,6 +222,8 @@ export function mountPlay(container: HTMLElement): () => void {
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') window.location.hash = '#/lobby';
+    if (e.key.toLowerCase() === 'f') avatarAnimator?.requestAttack();
+    if (e.key.toLowerCase() === 'h') avatarAnimator?.requestHit();
   };
   const onResize = () => {
     camera.aspect = innerWidth / innerHeight;
@@ -212,12 +236,23 @@ export function mountPlay(container: HTMLElement): () => void {
 
   // ── Terrain Height Raycast ─────────────────────────────────
   const raycaster = new THREE.Raycaster();
+  const down = new THREE.Vector3(0, -1, 0);
+  const rayOrigin = new THREE.Vector3();
+
   function getHeight(x: number, z: number): number {
-    raycaster.set(new THREE.Vector3(x, 200, z), new THREE.Vector3(0, -1, 0));
+    raycaster.set(new THREE.Vector3(x, 200, z), down);
     if (worldMeshes.length === 0) return 0;
     const hits = raycaster.intersectObjects(worldMeshes, false);
     return hits.length > 0 ? hits[0].point.y : -1;
   }
+
+  const groundRay: GroundRay = (x, y, z) => {
+    rayOrigin.set(x, y + 2, z);
+    raycaster.set(rayOrigin, down);
+    if (worldMeshes.length === 0) return null;
+    const hits = raycaster.intersectObjects(worldMeshes, false);
+    return hits.length > 0 ? hits[0].point.y : null;
+  };
 
   // ── Multiplayer ────────────────────────────────────────────
   connect(scene, 'island_1');
@@ -233,6 +268,12 @@ export function mountPlay(container: HTMLElement): () => void {
     const dt = Math.min(clock.getDelta(), 0.05);
 
     controller.update(dt, getHeight, avatarAnimator);
+    avatarAnimator?.update(dt, {
+      footIk,
+      groundRay,
+      grounded: controller.grounded,
+      moving: controller.isMoving(),
+    });
 
     const camTarget = playerRoot.position.clone();
     const camOffset = controller.getCameraOffset();

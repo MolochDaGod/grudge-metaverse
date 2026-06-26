@@ -13,9 +13,10 @@ export async function loadWarlordsAvatar(
   char: WarlordsCharacter,
 ): Promise<LoadedAvatar> {
   const loaded = await loadGltfCharacter(char);
+  loaded.group.userData.clipCount = loaded.clipCount;
   return {
     group: loaded.group,
-    animator: AvatarAnimator.fromController(loaded.controller),
+    animator: AvatarAnimator.fromGame(loaded.animator),
     height: 2.8,
   };
 }

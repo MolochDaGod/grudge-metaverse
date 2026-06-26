@@ -137,9 +137,9 @@ export function remapClipForRig(
 /** Scale to target height, ground feet at y=0, center XZ (playground SmartLoader pattern). */
 export function prepareGrudge6Model(
   model: THREE.Object3D,
-  opts: { targetHeight?: number; raceScale?: number; shadows?: boolean } = {},
+  opts: { targetHeight?: number; raceScale?: number; shadows?: boolean; resetPose?: boolean } = {},
 ): Grudge6Rig {
-  const { targetHeight = 2.8, raceScale = 1, shadows = true } = opts;
+  const { targetHeight = 2.8, raceScale = 1, shadows = true, resetPose = false } = opts;
 
   const box = new THREE.Box3().setFromObject(model);
   const height = box.max.y - box.min.y;
@@ -168,6 +168,6 @@ export function prepareGrudge6Model(
   }
 
   const rig = inspectGrudge6Model(model);
-  rig.skinnedMesh?.skeleton?.pose();
+  if (resetPose) rig.skinnedMesh?.skeleton?.pose();
   return rig;
 }

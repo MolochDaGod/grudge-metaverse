@@ -155,7 +155,7 @@ export function mountLobby(container: HTMLElement): () => void {
 
   function enterWorld(char: WarlordsCharacter) {
     setActiveCharacter(char);
-    window.location.hash = `#/play?char=${encodeURIComponent(char.id)}`;
+    window.location.hash = `#/game?char=${encodeURIComponent(char.id)}`;
   }
 
   async function loadCharacters() {

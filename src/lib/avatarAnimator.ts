@@ -1,23 +1,38 @@
-import type { AnimationController } from './animationController';
-import type { LocomotionState } from './grudge6Animations';
+import type { GroundRay } from './animator/footIk';
+import { GameAnimator } from './animator/gameAnimator';
 
-/** Thin facade over AnimationController for the play loop. */
+export interface AnimatorUpdateOpts {
+  footIk?: boolean;
+  groundRay?: GroundRay;
+  grounded?: boolean;
+  moving?: boolean;
+}
+
+/** Facade over GameAnimator for the live play/game loop. */
 export class AvatarAnimator {
-  constructor(private readonly ctrl: AnimationController) {}
+  constructor(private readonly game: GameAnimator) {}
 
-  static fromController(ctrl: AnimationController): AvatarAnimator {
-    return new AvatarAnimator(ctrl);
+  static fromGame(game: GameAnimator): AvatarAnimator {
+    return new AvatarAnimator(game);
   }
 
-  setLocomotion(state: LocomotionState, sprinting = false): void {
-    this.ctrl.setLocomotion(state, sprinting);
+  setGait(moving: boolean, sprinting: boolean): void {
+    this.game.setGait(moving, sprinting);
   }
 
-  update(dt: number): void {
-    this.ctrl.update(dt);
+  requestAttack(): void {
+    this.game.requestAttack();
+  }
+
+  requestHit(): void {
+    this.game.requestHit();
+  }
+
+  update(dt: number, opts?: AnimatorUpdateOpts): void {
+    this.game.update(dt, opts);
   }
 
   dispose(): void {
-    this.ctrl.dispose();
+    this.game.dispose();
   }
 }

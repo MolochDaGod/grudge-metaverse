@@ -1,82 +1,143 @@
 /**
- * Load grudge6 character as GLTF — bundled avatar GLB with embedded animations + controller.
+ * Metaverse character loader — bundled GLB + body atlas + equipment + GameAnimator.
+ * Follows Character-Animator-two viewer/game patterns (not the yellow fallback capsule).
  */
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildModel3d, type WarlordsCharacter } from './warlordsCharacter';
 import { applyModel3d, Grudge6EquipmentManager } from './grudge6Equipment';
-import { prepareGrudge6Model } from './grudge6Skeleton';
-import { AnimationController } from './animationController';
+import { inspectGrudge6Model, prepareGrudge6Model } from './grudge6Skeleton';
+import { remapMixamoClip } from './animationController';
+import { GameAnimator } from './animator/gameAnimator';
+import { applyBodyTexture, loadRaceBodyTexture } from './characterTextures';
 import {
-  bundledAvatarUrl,
-  fallbackRaceGlbUrl,
+  avatarGlbCandidates,
   FALLBACK_ANIMATION_URLS,
 } from './characterManifest';
 
 export interface GltfCharacter {
   group: THREE.Group;
-  controller: AnimationController;
+  animator: GameAnimator;
   clipCount: number;
+  source: string;
 }
 
 const LOADER = new GLTFLoader();
 
-async function tryLoadGltf(url: string) {
+type LoadedGltf = Awaited<ReturnType<typeof LOADER.loadAsync>>;
+
+async function loadGltfFromUrl(url: string): Promise<LoadedGltf | null> {
   try {
     return await LOADER.loadAsync(url);
-  } catch {
+  } catch (err) {
+    console.warn(`[metaverse] GLB failed: ${url}`, err);
     return null;
   }
+}
+
+function hasClip(clips: THREE.AnimationClip[], name: string): boolean {
+  return clips.some((c) => c.name.toLowerCase() === name.toLowerCase());
+}
+
+async function loadFallbackClips(clips: THREE.AnimationClip[]): Promise<THREE.AnimationClip[]> {
+  const out = [...clips];
+  const needs = (['idle', 'walk', 'run'] as const).filter((s) => !hasClip(out, s));
+  if (needs.length === 0) return out;
+
+  for (const state of needs) {
+    const url = FALLBACK_ANIMATION_URLS[state as keyof typeof FALLBACK_ANIMATION_URLS];
+    if (!url) continue;
+    try {
+      const gltf = await LOADER.loadAsync(url);
+      const raw = gltf.animations[0];
+      if (!raw) continue;
+      raw.name = state;
+      out.push(remapMixamoClip(raw));
+    } catch (err) {
+      console.warn(`[metaverse] External anim failed (${state}):`, err);
+    }
+  }
+  return out;
+}
+
+function findAnimRoot(scene: THREE.Object3D): THREE.Object3D {
+  let armature: THREE.Object3D | null = null;
+  scene.traverse((child) => {
+    if (armature) return;
+    if ((child as THREE.Bone).isBone && /^Bip001/i.test(child.name)) {
+      let p: THREE.Object3D | null = child;
+      while (p?.parent && p.parent !== scene) p = p.parent;
+      armature = p ?? child;
+    }
+  });
+  return armature ?? scene;
+}
+
+function orientForGame(model: THREE.Object3D): void {
+  model.rotation.y = Math.PI / 2;
+  model.updateMatrixWorld(true);
 }
 
 export async function loadGltfCharacter(char: WarlordsCharacter): Promise<GltfCharacter> {
   const raceId = char.raceId || 'human';
   const model3d = buildModel3d(char);
 
-  let gltf = await tryLoadGltf(bundledAvatarUrl(raceId));
-  let source = 'bundled';
-  if (!gltf) {
-    gltf = await tryLoadGltf(fallbackRaceGlbUrl(raceId));
-    source = 'race-glb';
+  let gltf: LoadedGltf | null = null;
+  let source = '';
+  for (const { url, label } of avatarGlbCandidates(raceId)) {
+    gltf = await loadGltfFromUrl(url);
+    if (gltf) {
+      source = label;
+      break;
+    }
   }
   if (!gltf) {
-    throw new Error(`No GLTF avatar for race: ${raceId}`);
+    throw new Error(`No metaverse GLB for race "${raceId}" (tried bundled + CDN)`);
   }
 
   const root = gltf.scene;
+  orientForGame(root);
+
   const em = new Grudge6EquipmentManager(model3d.prefix);
   em.catalog(root);
   applyModel3d(em, model3d);
+  if (Object.keys(em.slots).length === 0) {
+    console.warn(`[metaverse] No grudge6 equipment slots for prefix ${model3d.prefix}`);
+  }
+
+  const bodyTex = await loadRaceBodyTexture(raceId);
+  if (bodyTex) applyBodyTexture(root, bodyTex);
 
   prepareGrudge6Model(root, {
     targetHeight: 2.8,
     raceScale: model3d.scale,
+    resetPose: false,
   });
+
+  const animRoot = findAnimRoot(root);
+  inspectGrudge6Model(root);
 
   const wrapper = new THREE.Group();
   wrapper.add(root);
   wrapper.userData.characterId = char.id;
   wrapper.userData.characterName = char.name;
   wrapper.userData.avatarSource = source;
+  wrapper.userData.raceId = raceId;
 
-  const controller = new AnimationController(
-    new THREE.AnimationMixer(root),
-    root,
-  );
-
-  if (gltf.animations.length > 0) {
-    controller.registerEmbeddedClips(gltf.animations);
+  let clips = gltf.animations.length > 0 ? [...gltf.animations] : [];
+  if (!hasClip(clips, 'idle') || !hasClip(clips, 'walk')) {
+    clips = await loadFallbackClips(clips);
+  }
+  if (clips.length === 0) {
+    throw new Error(`Avatar "${raceId}" has no animation clips`);
   }
 
-  if (!controller.hasClip('idle') || !controller.hasClip('walk')) {
-    await controller.loadExternalClips(FALLBACK_ANIMATION_URLS);
-  }
-
-  controller.play(controller.hasClip('idle') ? 'idle' : 'walk');
+  const animator = new GameAnimator(animRoot, clips);
 
   return {
     group: wrapper,
-    controller,
-    clipCount: gltf.animations.length,
+    animator,
+    clipCount: clips.length,
+    source,
   };
 }

@@ -146,8 +146,7 @@ export class CharacterController {
       );
     }
 
-    animator?.setLocomotion(moving ? 'walk' : 'idle', sprinting);
-    animator?.update(dt);
+    animator?.setGait(moving, sprinting);
 
     this.wasMoving = moving;
   }

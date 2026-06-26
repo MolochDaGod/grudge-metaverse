@@ -1,21 +1,23 @@
 /**
  * Grudge Metaverse — Main entry point with hash-based router.
- * Routes: #/ (landing), #/lobby, #/play
+ * Routes: #/ (landing), #/lobby, #/game (live test), #/play (multiplayer world)
  */
 
 import { handleAuthCallback } from './lib/auth';
 import { mountLanding } from './pages/landing';
 import { mountLobby } from './pages/lobby';
+import { mountGame } from './pages/game';
 import { mountPlay } from './pages/play';
 
 const app = document.getElementById('app')!;
 let cleanup: (() => void) | null = null;
 
-type Route = '/' | '/lobby' | '/play';
+type Route = '/' | '/lobby' | '/game' | '/play';
 
 const routes: Record<Route, (container: HTMLElement) => () => void> = {
   '/': mountLanding,
   '/lobby': mountLobby,
+  '/game': mountGame,
   '/play': mountPlay,
 };
 
