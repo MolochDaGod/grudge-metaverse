@@ -1,0 +1,25 @@
+# Grudge Fleet Ops — control plane for AI workers + probes
+# Deploy: cd workers/fleet-ops && npx wrangler deploy
+# Route (optional): fleet-ops.grudge-studio.com or ops.grudge-studio.com
+
+name = "grudge-fleet-ops"
+main = "src/index.ts"
+compatibility_date = "2025-03-01"
+account_id = "ee475864561b02d4588180b8b9acf694"
+
+# Uncomment when DNS is ready:
+# [[routes]]
+# pattern = "fleet-ops.grudge-studio.com/*"
+# zone_name = "grudge-studio.com"
+
+[vars]
+FLEET_OPS_PUBLIC = "1"
+
+# Optional: bind KV for job history
+# [[kv_namespaces]]
+# binding = "JOBS"
+# id = "REPLACE_WITH_KV_ID"
+
+# Cron: probe every 6 hours (requires paid plan or enabled cron)
+# [triggers]
+# crons = ["0 */6 * * *"]

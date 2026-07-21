@@ -1,0 +1,56 @@
+# Scheduled + on-push fleet smoke for AI workers and humans.
+name: Fleet probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      surfaces:
+        description: "Comma-separated surface ids (empty = all)"
+        required: false
+        default: ""
+  schedule:
+    # Every 6 hours
+    - cron: "0 */6 * * *"
+  push:
+    branches: [master, main]
+    paths:
+      - "fleet/**"
+      - "scripts/fleet-probe.mjs"
+      - "scripts/generate-vercel-rewrites.mjs"
+      - "workers/fleet-ops/**"
+      - "vercel.json"
+      - ".github/workflows/fleet-probe.yml"
+
+concurrency:
+  group: fleet-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fleet probe
+        run: |
+          if [ -n "${{ github.event.inputs.surfaces }}" ]; then
+            node scripts/fleet-probe.mjs --surface "${{ github.event.inputs.surfaces }}"
+          else
+            node scripts/fleet-probe.mjs
+          fi
+
+      - name: Upload JSON summary (on failure keep logs)
+        if: always()
+        run: node scripts/fleet-probe.mjs --json > fleet-probe-result.json || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fleet-probe-result
+          path: fleet-probe-result.json
+          if-no-files-found: ignore

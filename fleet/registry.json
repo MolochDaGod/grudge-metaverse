@@ -1,0 +1,213 @@
+{
+  "$schema": "./registry.schema.json",
+  "version": "1.0.0",
+  "updatedAt": "2026-07-21",
+  "studio": "Grudge Studio",
+  "platforms": {
+    "cloudflare": {
+      "accountId": "ee475864561b02d4588180b8b9acf694",
+      "dns": "grudge-studio.com",
+      "cdn": "https://assets.grudge-studio.com",
+      "objectstore": "https://objectstore.grudge-studio.com",
+      "ai": "https://ai.grudge-studio.com",
+      "assetsApi": "https://api.grudge-studio.com/assets"
+    },
+    "vercel": {
+      "team": "grudgenexus"
+    },
+    "railway": {
+      "gameData": "https://grudge-api-production-0d46.up.railway.app",
+      "grudoxRoom": "https://voxgrudge-grudox-room-production.up.railway.app"
+    },
+    "puter": {
+      "sdk": "https://js.puter.com/v2/",
+      "note": "User-pays apps + KV only — never character SSOT"
+    }
+  },
+  "identity": {
+    "login": "https://id.grudge-studio.com/login",
+    "callbackPath": "/auth/callback",
+    "tokenKeys": ["grudge_auth_token", "grudge_session_token", "grudge.token", "sso_token"]
+  },
+  "surfaces": [
+    {
+      "id": "open",
+      "name": "Grudge Open",
+      "role": "player-launcher",
+      "tier": "L1",
+      "origin": "https://open.grudge-studio.com",
+      "aliases": ["https://gameopen.vercel.app"],
+      "repo": "MolochDaGod/gameopen",
+      "deploy": { "platform": "vercel", "project": "gameopen" },
+      "probes": [
+        { "type": "http", "url": "https://open.grudge-studio.com/", "expectStatus": 200 },
+        { "type": "http", "url": "https://open.grudge-studio.com/api/health", "expectStatus": [200, 404], "optional": true }
+      ]
+    },
+    {
+      "id": "grudox",
+      "name": "GRUDOX",
+      "role": "roblox-shell",
+      "tier": "L3",
+      "origin": "https://grudox.grudge-studio.com",
+      "aliases": ["https://grudox.vercel.app", "https://carrier.grudge-studio.com"],
+      "repo": "MolochDaGod/grudox",
+      "deploy": {
+        "platform": "vercel+cloudflare",
+        "project": "grudox",
+        "edgeWorker": "grudox-grudge-studio",
+        "room": "voxgrudge-grudox-room"
+      },
+      "probes": [
+        { "type": "http", "url": "https://grudox.grudge-studio.com/", "expectStatus": 200 },
+        { "type": "http", "url": "https://grudox.grudge-studio.com/api/healthz", "expectStatus": [200, 404], "optional": true },
+        { "type": "http", "url": "https://carrier.grudge-studio.com/", "expectStatus": 200 },
+        { "type": "ws", "url": "wss://grudox.grudge-studio.com/api/carrier", "optional": true },
+        { "type": "ws", "url": "wss://carrier.grudge-studio.com/api/carrier", "optional": true }
+      ]
+    },
+    {
+      "id": "metaverse",
+      "name": "Grudge Metaverse",
+      "role": "3d-mmo-client",
+      "tier": "L1",
+      "origin": "https://metaverse.grudge-studio.com",
+      "aliases": ["https://grudge-metaverse.vercel.app"],
+      "repo": "MolochDaGod/grudge-metaverse",
+      "deploy": { "platform": "vercel", "project": "grudge-metaverse" },
+      "probes": [
+        { "type": "http", "url": "https://metaverse.grudge-studio.com/", "expectStatus": 200 },
+        { "type": "http", "url": "https://metaverse.grudge-studio.com/api/characters", "expectStatus": [200, 401] }
+      ]
+    },
+    {
+      "id": "id",
+      "name": "Grudge ID",
+      "role": "identity",
+      "tier": "platform",
+      "origin": "https://id.grudge-studio.com",
+      "repo": "MolochDaGod/GrudgeBuilder",
+      "probes": [
+        { "type": "http", "url": "https://id.grudge-studio.com/login", "expectStatus": [200, 302, 301] }
+      ]
+    },
+    {
+      "id": "game-data",
+      "name": "Railway game-data SSOT",
+      "role": "characters-account",
+      "tier": "platform",
+      "origin": "https://grudge-api-production-0d46.up.railway.app",
+      "probes": [
+        { "type": "http", "url": "https://grudge-api-production-0d46.up.railway.app/api/health", "expectStatus": [200, 404], "optional": true },
+        { "type": "http", "url": "https://grudge-api-production-0d46.up.railway.app/api/characters", "expectStatus": [200, 401, 403] }
+      ]
+    },
+    {
+      "id": "assets-cdn",
+      "name": "Assets CDN",
+      "role": "binaries",
+      "tier": "platform",
+      "origin": "https://assets.grudge-studio.com",
+      "probes": [
+        { "type": "http", "url": "https://assets.grudge-studio.com/models/characters/races/human.glb", "method": "HEAD", "expectStatus": 200, "optional": true }
+      ]
+    },
+    {
+      "id": "objectstore",
+      "name": "ObjectStore",
+      "role": "definitions",
+      "tier": "platform",
+      "origin": "https://objectstore.grudge-studio.com",
+      "probes": [
+        { "type": "http", "url": "https://objectstore.grudge-studio.com/api/v1/weapons.json", "expectStatus": [200, 404], "optional": true }
+      ]
+    },
+    {
+      "id": "ai",
+      "name": "AI Gateway",
+      "role": "ai",
+      "tier": "platform",
+      "origin": "https://ai.grudge-studio.com",
+      "probes": [
+        { "type": "http", "url": "https://ai.grudge-studio.com/", "expectStatus": [200, 404, 401], "optional": true }
+      ]
+    },
+    {
+      "id": "foundry",
+      "name": "Character Foundry",
+      "role": "create-hero",
+      "tier": "L1",
+      "origin": "https://character.grudge-studio.com",
+      "probes": [
+        { "type": "http", "url": "https://character.grudge-studio.com/", "expectStatus": 200 }
+      ]
+    },
+    {
+      "id": "client",
+      "name": "Warlords Client",
+      "role": "live-play",
+      "tier": "L1",
+      "origin": "https://client.grudge-studio.com",
+      "probes": [
+        { "type": "http", "url": "https://client.grudge-studio.com/", "expectStatus": 200, "optional": true }
+      ]
+    },
+    {
+      "id": "dcq",
+      "name": "Dungeon Crawler Quest",
+      "role": "game",
+      "tier": "L1",
+      "origin": "https://dungeon-crawler-quest.vercel.app",
+      "aliases": ["https://dcq.grudge-studio.com"],
+      "repo": "MolochDaGod/Dungeon-Crawler-Quest",
+      "probes": [
+        { "type": "http", "url": "https://dungeon-crawler-quest.vercel.app/", "expectStatus": 200 }
+      ]
+    },
+    {
+      "id": "warlord-genesis",
+      "name": "Warlord Genesis",
+      "role": "game",
+      "tier": "L1",
+      "origin": "https://warlord-genesis.vercel.app",
+      "repo": "MolochDaGod/warlord-genesis",
+      "probes": [
+        { "type": "http", "url": "https://warlord-genesis.vercel.app/", "expectStatus": 200, "optional": true }
+      ]
+    }
+  ],
+  "agentRoles": [
+    {
+      "id": "registrar",
+      "description": "Add/update surfaces in fleet/registry.json via PR",
+      "tools": ["git", "registry"]
+    },
+    {
+      "id": "onboarder",
+      "description": "Auth allowlist + vercel rewrites + character API gates",
+      "tools": ["probe", "generate-rewrites"]
+    },
+    {
+      "id": "deployer",
+      "description": "Vercel/Railway/CF deploy via CI only",
+      "tools": ["github-actions", "wrangler", "vercel"]
+    },
+    {
+      "id": "sre",
+      "description": "Scheduled fleet-probe; page on red",
+      "tools": ["fleet-probe", "cron"]
+    },
+    {
+      "id": "debugger",
+      "description": "Logs + fix PR for failed gates",
+      "tools": ["logs", "git"]
+    }
+  ],
+  "rewritesTemplate": {
+    "gameData": "https://grudge-api-production-0d46.up.railway.app",
+    "auth": "https://id.grudge-studio.com",
+    "assets": "https://assets.grudge-studio.com",
+    "objectstore": "https://objectstore.grudge-studio.com",
+    "ai": "https://ai.grudge-studio.com"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GrudgeFleetRegistry",
+  "type": "object",
+  "required": ["version", "surfaces"],
+  "properties": {
+    "version": { "type": "string" },
+    "updatedAt": { "type": "string" },
+    "platforms": { "type": "object" },
+    "identity": { "type": "object" },
+    "surfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "origin"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "role": { "type": "string" },
+          "tier": { "type": "string" },
+          "origin": { "type": "string", "format": "uri" },
+          "aliases": { "type": "array", "items": { "type": "string" } },
+          "repo": { "type": "string" },
+          "deploy": { "type": "object" },
+          "probes": { "type": "array" }
+        }
+      }
+    },
+    "agentRoles": { "type": "array" },
+    "rewritesTemplate": { "type": "object" }
+  }
+}

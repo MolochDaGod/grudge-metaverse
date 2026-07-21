@@ -1,29 +1,99 @@
 {
   "rewrites": [
-    { "source": "/api/auth/me", "destination": "https://grudge-builder-production.up.railway.app/api/auth/me" },
-    { "source": "/api/auth/verify", "destination": "https://grudge-builder-production.up.railway.app/api/auth/verify" },
-    { "source": "/api/auth/session/exchange", "destination": "https://api.grudge-studio.com/api/auth/session/exchange" },
-    { "source": "/api/auth/:path*", "destination": "https://id.grudge-studio.com/auth/:path*" },
-    { "source": "/api/characters", "destination": "https://grudge-builder-production.up.railway.app/api/characters" },
-    { "source": "/api/characters/:path*", "destination": "https://grudge-builder-production.up.railway.app/api/characters/:path*" },
-    { "source": "/api/:path*", "destination": "https://api.grudge-studio.com/:path*" },
-    { "source": "/assets-cdn/:path*", "destination": "https://assets.grudge-studio.com/:path*" },
-    { "source": "/api/assets/:path*", "destination": "https://assets.grudge-studio.com/:path*" },
-    { "source": "/game/:path*", "destination": "https://grudge-game.pages.dev/game/:path*" },
     {
-      "source": "/test",
-      "destination": "https://client.grudge-studio.com/island-3d?engine=legacy&mode=lobby&map=pirate-islands"
+      "source": "/auth/callback",
+      "destination": "/index.html"
     },
     {
-      "source": "/test/:path*",
-      "destination": "https://client.grudge-studio.com/island-3d?engine=legacy&mode=lobby&map=pirate-islands"
+      "source": "/api/characters",
+      "destination": "https://grudge-api-production-0d46.up.railway.app/api/characters"
     },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/characters/:path*",
+      "destination": "https://grudge-api-production-0d46.up.railway.app/api/characters/:path*"
+    },
+    {
+      "source": "/api/account/:path*",
+      "destination": "https://grudge-api-production-0d46.up.railway.app/api/account/:path*"
+    },
+    {
+      "source": "/api/wallet/:path*",
+      "destination": "https://grudge-api-production-0d46.up.railway.app/api/wallet/:path*"
+    },
+    {
+      "source": "/api/inventory/:path*",
+      "destination": "https://grudge-api-production-0d46.up.railway.app/api/inventory/:path*"
+    },
+    {
+      "source": "/api/island/:path*",
+      "destination": "https://grudge-api-production-0d46.up.railway.app/api/island/:path*"
+    },
+    {
+      "source": "/api/auth/me",
+      "destination": "https://grudge-api-production-0d46.up.railway.app/api/auth/me"
+    },
+    {
+      "source": "/api/auth/verify",
+      "destination": "https://grudge-api-production-0d46.up.railway.app/api/auth/verify"
+    },
+    {
+      "source": "/api/auth/session/exchange",
+      "destination": "https://grudge-api-production-0d46.up.railway.app/api/auth/session/exchange"
+    },
+    {
+      "source": "/api/auth/puter",
+      "destination": "https://grudge-api-production-0d46.up.railway.app/api/auth/puter"
+    },
+    {
+      "source": "/api/auth/guest",
+      "destination": "https://grudge-api-production-0d46.up.railway.app/api/auth/guest"
+    },
+    {
+      "source": "/api/auth/:path*",
+      "destination": "https://id.grudge-studio.com/api/auth/:path*"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "https://id.grudge-studio.com/auth/:path*"
+    },
+    {
+      "source": "/login",
+      "destination": "https://id.grudge-studio.com/login"
+    },
+    {
+      "source": "/api/objectstore/:path*",
+      "destination": "https://objectstore.grudge-studio.com/:path*"
+    },
+    {
+      "source": "/api/assets/:path*",
+      "destination": "https://assets.grudge-studio.com/:path*"
+    },
+    {
+      "source": "/assets-cdn/:path*",
+      "destination": "https://assets.grudge-studio.com/:path*"
+    },
+    {
+      "source": "/models/grudge6/:path*",
+      "destination": "https://assets.grudge-studio.com/models/grudge6/:path*"
+    },
+    {
+      "source": "/api/ai/:path*",
+      "destination": "https://ai.grudge-studio.com/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
       "source": "/assets/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     }
   ]
 }
